@@ -129,13 +129,31 @@ function renderStats() {
   }).join('')}</div>`;
 }
 
+function getWigStatus(wigId) {
+  const wig = state.db.wigs?.find((entry) => entry.id === wigId);
+  if (!wig) return { status: '未关联', tone: '' };
+  return { status: wig.status, tone: toneFor(wig.status) };
+}
+
 function renderCard(item, collection, view) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
   const statusValue = item[view.statusField];
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
   const details = (view.detailFields || []).map((field) => {
-    const raw = item[field.name];
-    const value = field.type === 'relation' ? relationLabel(field, raw) : raw;
+    let value;
+    let tone = '';
+    if (field.type === 'dynamic' && field.name === 'wigStatus') {
+      const wigInfo = getWigStatus(item.wigId);
+      value = wigInfo.status;
+      tone = wigInfo.tone;
+    } else if (field.type === 'relation') {
+      value = relationLabel(field, item[field.name]);
+    } else {
+      value = item[field.name];
+    }
+    if (tone) {
+      return `<div>${escapeHtml(field.label)}<br>${pill(value || '-', tone)}</div>`;
+    }
     return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
   }).join('');
   const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
@@ -143,9 +161,15 @@ function renderCard(item, collection, view) {
     .filter((action) => action.collection === collection)
     .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
     .join('');
+  let wigStatusBadge = '';
+  if (view.showWigStatus && item.wigId) {
+    const wigInfo = getWigStatus(item.wigId);
+    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+  }
   return `<article class="card">
     <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, toneFor(statusValue)) : ''}</div>
     ${relation}
+    ${wigStatusBadge}
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
     ${details ? `<div class="detail">${details}</div>` : ''}
     ${actions ? `<div class="actions">${actions}</div>` : ''}

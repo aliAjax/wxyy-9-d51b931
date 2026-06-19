@@ -1,7 +1,7 @@
 module.exports = {
   port: 3909,
   title: '剧场假发勾织维修单',
-  lede: '维护角色假发档案、演出可用状态、维修记录和归还入库，让服化团队在演出前知道哪顶假发能上场。',
+  lede: '维护角色假发档案、演出排期、可用状态、维修记录和归还入库，让服化团队在演出前知道哪顶假发能上场。',
   tones: {
     '可演出': 'ok',
     '已完成': 'ok',
@@ -10,15 +10,19 @@ module.exports = {
     '需要维修': 'warn',
     '待处理': 'warn',
     '维修中': 'warn',
-    '待检查': 'warn'
+    '待检查': 'warn',
+    '已排期': 'ok',
+    '待确认': 'warn'
   },
   collections: {
     wigs: { label: '假发档案' },
-    repairs: { label: '维修单' }
+    repairs: { label: '维修单' },
+    schedules: { label: '演出排期' }
   },
   stats: [
     { label: '假发档案', collection: 'wigs' },
     { label: '可演出', collection: 'wigs', filter: { field: 'status', value: '可演出' } },
+    { label: '演出排期', collection: 'schedules' },
     { label: '维修单', collection: 'repairs' },
     { label: '紧急维修', collection: 'wigs', filter: { field: 'status', value: '紧急维修' } }
   ],
@@ -29,6 +33,35 @@ module.exports = {
       type: 'dashboard',
       focusTitle: '演出前优先清单',
       focus: { collection: 'wigs', field: 'status', values: ['需要维修', '紧急维修', '可演出'], limit: 8 }
+    },
+    {
+      id: 'schedules',
+      label: '演出排期',
+      collection: 'schedules',
+      formTitle: '新增演出排期',
+      listTitle: '排期列表',
+      submitLabel: '创建排期',
+      searchPlaceholder: '搜索剧目、角色',
+      searchFields: ['show', 'role'],
+      statusField: 'status',
+      statusOptions: ['已排期', '待确认'],
+      titleFields: ['show', 'performanceDate'],
+      summaryFields: ['note'],
+      relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },
+      detailFields: [
+        { label: '场次日期', name: 'performanceDate' },
+        { label: '角色', name: 'role' },
+        { label: '假发状态', name: 'wigStatus', type: 'dynamic' }
+      ],
+      showWigStatus: true,
+      fields: [
+        { label: '剧目', name: 'show', required: true },
+        { label: '场次日期', name: 'performanceDate', type: 'date', required: true },
+        { label: '角色', name: 'role', required: true },
+        { label: '假发', name: 'wigId', type: 'relation', collection: 'wigs', labelFields: ['role', 'show', 'color'], required: true, wide: true },
+        { label: '排期状态', name: 'status', type: 'select', options: ['已排期', '待确认'] },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
+      ]
     },
     {
       id: 'wigs',
@@ -91,6 +124,7 @@ module.exports = {
     }
   ],
   actions: [
+    { id: 'schedule-confirm', label: '确认排期', collection: 'schedules', patches: [{ field: 'status', value: '已排期' }] },
     { id: 'wig-ready', label: '标记可演出', collection: 'wigs', patches: [{ field: 'status', value: '可演出' }] },
     { id: 'wig-urgent', label: '紧急维修', collection: 'wigs', patches: [{ field: 'status', value: '紧急维修' }] },
     { id: 'wig-return', label: '归还入库', collection: 'wigs', patches: [{ field: 'status', value: '已归还入库' }] },
