@@ -690,9 +690,9 @@ function renderWigImportView(view) {
       <div class="import-preview-header">
         <h3>识别结果预览</h3>
         <div class="import-preview-stats">
+          <span class="pill">共 ${importState.validatedRows.length} 行</span>
           <span class="pill ok">${validCount} 行有效</span>
           <span class="pill ${invalidCount > 0 ? 'bad' : ''}">${invalidCount} 行缺失</span>
-          <span class="pill">共 ${importState.validatedRows.length} 行</span>
         </div>
       </div>
       <div class="import-table-wrapper">
@@ -735,42 +735,38 @@ function renderWigImportView(view) {
   let importResultHtml = '';
   if (importState.importResult) {
     const r = importState.importResult;
+    const totalRows = importState.validatedRows?.length || 0;
     importResultHtml = `
       <div class="import-result-panel">
-        <h3>导入结果</h3>
-        <div class="import-result-stats">
-          <div class="import-result-item">
-            <span class="import-result-label">总计</span>
-            <span class="pill">${r.total}</span>
-          </div>
-          <div class="import-result-item">
-            <span class="import-result-label">成功</span>
-            <span class="pill ok">${r.success}</span>
-          </div>
-          <div class="import-result-item">
-            <span class="import-result-label">失败</span>
-            <span class="pill ${r.fail > 0 ? 'bad' : ''}">${r.fail}</span>
+        <div class="import-preview-header">
+          <h3>导入结果</h3>
+          <div class="import-preview-stats">
+            <span class="pill">共 ${r.total} 条</span>
+            <span class="pill ok">成功 ${r.success} 条</span>
+            <span class="pill ${r.fail > 0 ? 'bad' : ''}">失败 ${r.fail} 条</span>
           </div>
         </div>
         ${r.failures && r.failures.length > 0 ? `
           <div class="import-failures">
             <h4>失败行详情</h4>
-            <table class="import-failures-table">
-              <thead>
-                <tr>
-                  <th>行号</th>
-                  <th>缺少字段</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${r.failures.map((f) => `
+            <div class="import-table-wrapper">
+              <table class="import-preview-table import-failures-table">
+                <thead>
                   <tr>
-                    <td>${f.row}</td>
-                    <td>${f.missingFields.map((field) => escapeHtml(fieldLabels[field] || field)).join('、')}</td>
+                    <th class="import-col-num">行号</th>
+                    <th>缺少字段</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${r.failures.map((f) => `
+                    <tr class="import-row-invalid">
+                      <td class="import-col-num">${f.row}</td>
+                      <td>${f.missingFields.map((field) => escapeHtml(fieldLabels[field] || field)).join('、')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
           </div>
         ` : ''}
       </div>

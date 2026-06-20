@@ -1078,29 +1078,6 @@ td.import-col-num {
   font-size: 18px;
 }
 
-.import-result-stats {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 14px 16px;
-  background: #f7f3eb;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-}
-
-.import-result-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.import-result-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
 .import-failures {
   margin-top: 16px;
 }
@@ -1109,35 +1086,4 @@ td.import-col-num {
   margin: 0 0 10px;
   font-size: 15px;
   color: var(--bad);
-}
-
-.import-failures-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.import-failures-table thead {
-  background: rgba(161, 61, 61, .08);
-}
-
-.import-failures-table th {
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 700;
-  color: var(--bad);
-  border-bottom: 1px solid var(--line);
-}
-
-.import-failures-table td {
-  padding: 9px 12px;
-  border-bottom: 1px solid rgba(216, 208, 194, .6);
-}
-
-.import-failures-table tbody tr:last-child td {
-  border-bottom: none;
 }
