@@ -735,7 +735,6 @@ function renderWigImportView(view) {
   let importResultHtml = '';
   if (importState.importResult) {
     const r = importState.importResult;
-    const totalRows = importState.validatedRows?.length || 0;
     importResultHtml = `
       <div class="import-result-panel">
         <div class="import-preview-header">
@@ -1151,6 +1150,7 @@ document.addEventListener('click', async (event) => {
       return;
     }
     const validRows = importState.validatedRows.filter((r) => r.isValid).map((r) => r.data);
+    const allRows = importState.validatedRows.map((r) => r.data);
     if (validRows.length === 0) {
       toast('没有可导入的有效数据');
       return;
@@ -1158,7 +1158,7 @@ document.addEventListener('click', async (event) => {
     try {
       const result = await api('/api/wigs/batch-import', {
         method: 'POST',
-        body: JSON.stringify({ rows: validRows })
+        body: JSON.stringify({ rows: allRows })
       });
       window.__wigImportState = {
         ...importState,
