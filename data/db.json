@@ -38,8 +38,13 @@
       "performanceDate": "2026-07-03",
       "note": "状态良好",
       "createdAt": "2026-06-10T08:00:00.000Z",
-      "updatedAt": "2026-06-20T01:13:58.515Z",
+      "updatedAt": "2026-06-20T01:32:15.421Z",
       "history": [
+        {
+          "at": "2026-06-20T01:32:15.423Z",
+          "action": "重新检查",
+          "note": "演出前检查已重置"
+        },
         {
           "at": "2026-06-20T01:13:58.515Z",
           "action": "检查通过",
@@ -633,51 +638,56 @@
       "show": "午夜花园",
       "role": "王子",
       "wigId": "wig-seed-2",
-      "status": "检查通过",
+      "status": "待检查",
       "checkItems": [
         {
           "name": "外观完整性",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发网状态",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发际线贴合度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "定型效果",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "清洁度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发丝牢固度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "配件齐全",
-          "result": "通过",
+          "result": "",
           "note": ""
         }
       ],
       "findings": "",
       "suggestions": "",
-      "checker": "陈思",
-      "checkedAt": "2026-06-12T14:00:00.000Z",
+      "checker": "",
+      "checkedAt": "",
       "createdAt": "2026-06-11T09:00:00.000Z",
-      "updatedAt": "2026-06-20T01:13:58.515Z",
+      "updatedAt": "2026-06-20T01:32:15.421Z",
       "history": [
+        {
+          "at": "2026-06-20T01:32:15.423Z",
+          "action": "重新检查",
+          "note": "清空旧结果，重置为待检查状态"
+        },
         {
           "at": "2026-06-20T01:13:58.515Z",
           "action": "检查通过",

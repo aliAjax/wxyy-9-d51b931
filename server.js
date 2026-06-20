@@ -217,7 +217,7 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
 app.patch('/api/pre-checklists/:id/check', async (req, res) => {
   const db = await readDb();
   const { id } = req.params;
-  const { checkItems, findings, suggestions, checker, status } = req.body;
+  const { checkItems, findings, suggestions, checker, status, reset } = req.body;
 
   const checklist = (db.preChecklists || []).find((c) => c.id === id);
   if (!checklist) return res.status(404).json({ error: '检查任务不存在' });
@@ -225,43 +225,64 @@ app.patch('/api/pre-checklists/:id/check', async (req, res) => {
   const now = new Date().toISOString();
   const prevStatus = checklist.status;
 
-  if (checkItems) checklist.checkItems = checkItems;
-  if (findings !== undefined) checklist.findings = findings;
-  if (suggestions !== undefined) checklist.suggestions = suggestions;
-  if (checker) checklist.checker = checker;
+  if (reset) {
+    checklist.checkItems = (config.checkItems || []).map((name) => ({
+      name,
+      result: '',
+      note: ''
+    }));
+    checklist.findings = '';
+    checklist.suggestions = '';
+    checklist.checker = '';
+    checklist.checkedAt = '';
+    checklist.status = '待检查';
+    checklist.updatedAt = now;
+    checklist.history = checklist.history || [];
+    checklist.history.unshift(stamp('重新检查', '清空旧结果，重置为待检查状态'));
 
-  if (status) {
-    checklist.status = status;
-    checklist.checkedAt = now;
-  }
-
-  checklist.updatedAt = now;
-  checklist.history = checklist.history || [];
-
-  const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
-
-  if (status === '检查通过') {
-    checklist.history.unshift(stamp('检查通过', findings || '检查合格，可上场演出'));
+    const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
     if (wig) {
-      wig.status = '可演出';
       wig.updatedAt = now;
       wig.history = wig.history || [];
-      wig.history.unshift(stamp('演出前检查通过', '标记为可演出'));
+      wig.history.unshift(stamp('重新检查', '演出前检查已重置'));
     }
-  } else if (status === '检查不通过') {
-    checklist.history.unshift(stamp('检查不通过', findings || '发现问题需维修'));
-    if (wig) {
-      wig.status = '需要维修';
-      wig.updatedAt = now;
-      wig.history = wig.history || [];
-      wig.history.unshift(stamp('演出前检查不通过', `发现问题：${findings || '需维修'}`));
+  } else {
+    if (checkItems) checklist.checkItems = checkItems;
+    if (findings !== undefined) checklist.findings = findings;
+    if (suggestions !== undefined) checklist.suggestions = suggestions;
+    if (checker) checklist.checker = checker;
+
+    if (status && status !== prevStatus) {
+      checklist.status = status;
     }
-  } else if (prevStatus !== '待检查' && status === '待检查') {
-    checklist.history.unshift(stamp('重新检查', '重置为待检查状态'));
-    if (wig) {
-      wig.updatedAt = now;
-      wig.history = wig.history || [];
-      wig.history.unshift(stamp('重新检查', '演出前检查重置'));
+
+    if (status === '检查通过' || status === '检查不通过') {
+      checklist.checkedAt = now;
+    }
+
+    checklist.updatedAt = now;
+    checklist.history = checklist.history || [];
+
+    const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
+
+    if (status === '检查通过' && prevStatus !== '检查通过') {
+      checklist.history.unshift(stamp('检查通过', findings || '检查合格，可上场演出'));
+      if (wig) {
+        wig.status = '可演出';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('演出前检查通过', '标记为可演出'));
+      }
+    } else if (status === '检查不通过' && prevStatus !== '检查不通过') {
+      checklist.history.unshift(stamp('检查不通过', findings || '发现问题需维修'));
+      if (wig) {
+        wig.status = '需要维修';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('演出前检查不通过', `发现问题：${findings || '需维修'}`));
+      }
+    } else if (status === '待检查' && prevStatus === '待检查') {
+      checklist.history.unshift(stamp('保存草稿', findings || '已保存检查草稿'));
     }
   }
 

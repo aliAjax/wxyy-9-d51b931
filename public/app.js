@@ -341,10 +341,7 @@ function renderPreChecklistCard(item, view) {
 
   const checkItemsHtml = renderCheckItems(item.checkItems);
 
-  const actions = state.config.actions
-    .filter((action) => action.collection === view.collection)
-    .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
-    .join('');
+  const actions = '';
 
   let wigStatusBadge = '';
   if (view.showWigStatus && item.wigId) {
@@ -388,7 +385,7 @@ function renderPreChecklistCard(item, view) {
       <label>检查人<input type="text" name="checker" data-check-text="checker" value="${escapeHtml(item.checker || '')}"></label>
       <div class="actions">
         <button class="secondary" data-check-cancel="${item.id}">取消</button>
-        <button class="ghost" data-check-submit="待检查" data-check-id="${item.id}">保存草稿</button>
+        ${item.status !== '待检查' ? `<button class="ghost" data-check-reset="${item.id}">重置为待检查</button>` : `<button class="ghost" data-check-submit="待检查" data-check-id="${item.id}">保存草稿</button>`}
         <button class="ghost" data-check-submit="检查通过" data-check-id="${item.id}">标记通过</button>
         <button class="danger" data-check-submit="检查不通过" data-check-id="${item.id}">标记不通过</button>
       </div>
@@ -504,6 +501,7 @@ document.addEventListener('click', async (event) => {
   const checkEdit = event.target.closest('[data-check-edit]');
   const checkCancel = event.target.closest('[data-check-cancel]');
   const checkSubmit = event.target.closest('[data-check-submit]');
+  const checkReset = event.target.closest('[data-check-reset]');
   const generateBtn = event.target.closest('[id^="generate-btn-"]');
 
   if (tab) setTab(tab.dataset.tab);
@@ -566,6 +564,24 @@ document.addEventListener('click', async (event) => {
       });
       await load();
       toast(status === '待检查' ? '已保存草稿' : `已${status}`);
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+  if (checkReset) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = checkReset.dataset.checkReset;
+    try {
+      await api(`/api/pre-checklists/${id}/check`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: '待检查',
+          reset: true
+        })
+      });
+      await load();
+      toast('已重置为待检查');
     } catch (error) {
       toast(error.message);
     }
