@@ -763,6 +763,375 @@ app.post('/api/wigs/batch-import', async (req, res) => {
   });
 });
 
+app.get('/api/availability-warnings', async (req, res) => {
+  const db = await readDb();
+  const schedules = db.schedules || [];
+  const wigs = db.wigs || [];
+  const repairs = db.repairs || [];
+  const lendings = db.lendings || [];
+  const preChecklists = db.preChecklists || [];
+  const staff = db.staff || [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const warnings = [];
+  const warningId = (prefix, scheduleId, wigId) =>
+    `${prefix}-${scheduleId || 'none'}-${wigId || 'none'}`;
+
+  const wigScheduleMap = new Map();
+  for (const s of schedules) {
+    if (!wigScheduleMap.has(s.wigId)) wigScheduleMap.set(s.wigId, []);
+    wigScheduleMap.get(s.wigId).push(s);
+  }
+
+  for (const schedule of schedules) {
+    const perfDate = new Date(schedule.performanceDate);
+    perfDate.setHours(0, 0, 0, 0);
+    const daysUntil = Math.ceil((perfDate - today) / (1000 * 60 * 60 * 24));
+
+    const wig = wigs.find((w) => w.id === schedule.wigId);
+    const wigLabel = wig ? `${wig.role} / ${wig.show}` : '未关联假发';
+
+    const baseWarning = {
+      scheduleId: schedule.id,
+      wigId: schedule.wigId,
+      wigLabel,
+      performanceDate: schedule.performanceDate,
+      show: schedule.show,
+      role: schedule.role,
+      daysUntilPerformance: daysUntil,
+      scheduleStatus: schedule.status || '已排期'
+    };
+
+    if (wig && (wig.status === '需要维修' || wig.status === '紧急维修')) {
+      const activeRepairs = repairs.filter(
+        (r) => r.wigId === wig.id && ['待处理', '维修中', '待检查'].includes(r.status)
+      );
+      warnings.push({
+        ...baseWarning,
+        id: warningId('unavailable', schedule.id, wig.id),
+        riskType: 'wigUnavailable',
+        riskLevel: 'high',
+        title: '假发不可用',
+        description: `假发状态为「${wig.status}」，${activeRepairs.length > 0 ? `存在 ${activeRepairs.length} 个未完成维修单` : '请尽快创建维修单'}`,
+        relatedItems: { wig, repairs: activeRepairs },
+        actions: [
+          { id: 'create-repair', label: '创建紧急维修单', type: 'action' },
+          { id: 'go-repairs', label: '查看维修单', type: 'link', target: 'repairs' }
+        ]
+      });
+    }
+
+    const relatedRepairs = repairs.filter(
+      (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+    );
+    for (const repair of relatedRepairs) {
+      if (repair.dueDate) {
+        const due = new Date(repair.dueDate);
+        due.setHours(0, 0, 0, 0);
+        if (due > perfDate) {
+          const lateDays = Math.ceil((due - perfDate) / (1000 * 60 * 60 * 24));
+          warnings.push({
+            ...baseWarning,
+            id: warningId('repairLate', schedule.id, repair.id),
+            riskType: 'repairLate',
+            riskLevel: 'high',
+            title: '维修截止晚于演出',
+            description: `维修单「${repair.type}」截止日 ${repair.dueDate} 晚于演出日 ${lateDays} 天，处理人：${staff.find((s) => s.id === repair.handler)?.name || repair.handler || '未指派'}`,
+            relatedItems: { repair },
+            actions: [
+              { id: 'reassign-repair', label: '重新指派', type: 'action', repairId: repair.id },
+              { id: 'go-dispatch', label: '查看派工板', type: 'link', target: 'dispatchBoard' }
+            ]
+          });
+        }
+      }
+    }
+
+    const activeLending = lendings.find(
+      (l) => l.wigId === schedule.wigId && ['借出中', '归还待检查'].includes(l.status)
+    );
+    if (activeLending) {
+      let overdue = false;
+      let overdueDesc = '';
+      if (activeLending.expectedReturnDate) {
+        const expectedReturn = new Date(activeLending.expectedReturnDate);
+        expectedReturn.setHours(0, 0, 0, 0);
+        if (expectedReturn > perfDate) {
+          overdue = true;
+          overdueDesc = `预计归还日 ${activeLending.expectedReturnDate} 晚于演出日`;
+        } else if (activeLending.status === '借出中') {
+          overdueDesc = `借出给 ${activeLending.actor}，状态「${activeLending.status}」，预计归还 ${activeLending.expectedReturnDate}`;
+        }
+      } else {
+        overdueDesc = `借出给 ${activeLending.actor}，状态「${activeLending.status}」，无预计归还日期`;
+      }
+
+      warnings.push({
+        ...baseWarning,
+        id: warningId('lending', schedule.id, activeLending.id),
+        riskType: 'lendingOverdue',
+        riskLevel: overdue ? 'high' : 'medium',
+        title: activeLending.status === '归还待检查' ? '归还待检查' : '借出未归还',
+        description: overdueDesc,
+        relatedItems: { lending: activeLending },
+        actions: [
+          activeLending.status === '借出中'
+            ? { id: 'mark-return', label: '标记归还待检查', type: 'action', lendingId: activeLending.id }
+            : { id: 'go-lending', label: '去检查归还', type: 'link', target: 'lendings' }
+        ]
+      });
+    }
+
+    const wigSchedules = wigScheduleMap.get(schedule.wigId) || [];
+    const sameDateSchedules = wigSchedules.filter(
+      (s) => s.id !== schedule.id && s.performanceDate === schedule.performanceDate
+    );
+    if (sameDateSchedules.length > 0) {
+      warnings.push({
+        ...baseWarning,
+        id: warningId('conflict', schedule.id, schedule.wigId),
+        riskType: 'scheduleConflict',
+        riskLevel: 'medium',
+        title: '同一场次占用冲突',
+        description: `同一假发在 ${schedule.performanceDate} 被 ${sameDateSchedules.length + 1} 个场次使用：${sameDateSchedules.map((s) => s.role).join('、')}、${schedule.role}`,
+        relatedItems: { conflictingSchedules: sameDateSchedules },
+        actions: [
+          { id: 'go-schedules', label: '调整排期', type: 'link', target: 'schedules' }
+        ]
+      });
+    }
+
+    const lastFailedReturnLending = lendings
+      .filter((l) => l.wigId === schedule.wigId && l.status === '归还检查不通过')
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+    if (lastFailedReturnLending) {
+      const hasFollowUpRepair = repairs.some(
+        (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+      );
+      warnings.push({
+        ...baseWarning,
+        id: warningId('returnFail', schedule.id, lastFailedReturnLending.id),
+        riskType: 'returnCheckFail',
+        riskLevel: hasFollowUpRepair ? 'medium' : 'high',
+        title: '归还检查不通过',
+        description: `最近一次归还检查不通过，发现问题：${lastFailedReturnLending.checkFindings || '未记录'}${hasFollowUpRepair ? '，已创建维修单' : '，尚未创建维修单'}`,
+        relatedItems: { lending: lastFailedReturnLending },
+        actions: hasFollowUpRepair
+          ? [{ id: 'go-repairs', label: '查看维修进度', type: 'link', target: 'repairs' }]
+          : [{ id: 'create-repair', label: '创建维修单', type: 'action' }]
+      });
+    }
+
+    const relatedPreCheck = preChecklists
+      .filter(
+        (c) => c.wigId === schedule.wigId && c.performanceDate === schedule.performanceDate
+      )
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+
+    if (relatedPreCheck) {
+      if (relatedPreCheck.status === '待检查' && daysUntil <= 7) {
+        warnings.push({
+          ...baseWarning,
+          id: warningId('preCheckPending', schedule.id, relatedPreCheck.id),
+          riskType: 'preCheckPending',
+          riskLevel: daysUntil <= 2 ? 'high' : 'medium',
+          title: '演出前检查未完成',
+          description: `距离演出还有 ${daysUntil} 天，检查任务状态为「待检查」`,
+          relatedItems: { preChecklist: relatedPreCheck },
+          actions: [
+            { id: 'mark-precheck', label: '标记待检查', type: 'action', preChecklistId: relatedPreCheck.id },
+            { id: 'go-precheck', label: '去执行检查', type: 'link', target: 'preChecklists' }
+          ]
+        });
+      } else if (relatedPreCheck.status === '检查不通过') {
+        const hasRepair = repairs.some(
+          (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+        );
+        warnings.push({
+          ...baseWarning,
+          id: warningId('preCheckFail', schedule.id, relatedPreCheck.id),
+          riskType: 'preCheckPending',
+          riskLevel: 'high',
+          title: '演出前检查不通过',
+          description: `检查发现：${relatedPreCheck.findings || '未记录'}${hasRepair ? '，已创建维修单跟进' : '，尚未跟进'}`,
+          relatedItems: { preChecklist: relatedPreCheck },
+          actions: hasRepair
+            ? [{ id: 'go-repairs', label: '查看维修进度', type: 'link', target: 'repairs' }]
+            : [{ id: 'create-repair', label: '创建维修单', type: 'action' }]
+        });
+      }
+    } else if (daysUntil <= 7) {
+      warnings.push({
+        ...baseWarning,
+        id: warningId('noPreCheck', schedule.id, schedule.wigId),
+        riskType: 'preCheckPending',
+        riskLevel: daysUntil <= 2 ? 'high' : 'medium',
+        title: '未生成演出前检查',
+        description: `距离演出还有 ${daysUntil} 天，尚未生成演出前检查任务`,
+        relatedItems: {},
+        actions: [
+          { id: 'generate-precheck', label: '生成检查任务', type: 'action' },
+          { id: 'go-precheck', label: '去检查模块', type: 'link', target: 'preChecklists' }
+        ]
+      });
+    }
+  }
+
+  warnings.sort((a, b) => {
+    const levelRank = { high: 0, medium: 1, low: 2 };
+    const rankDiff = levelRank[a.riskLevel] - levelRank[b.riskLevel];
+    if (rankDiff !== 0) return rankDiff;
+    return new Date(a.performanceDate) - new Date(b.performanceDate);
+  });
+
+  const stats = {
+    total: warnings.length,
+    high: warnings.filter((w) => w.riskLevel === 'high').length,
+    medium: warnings.filter((w) => w.riskLevel === 'medium').length,
+    byType: {
+      wigUnavailable: warnings.filter((w) => w.riskType === 'wigUnavailable').length,
+      repairLate: warnings.filter((w) => w.riskType === 'repairLate').length,
+      lendingOverdue: warnings.filter((w) => w.riskType === 'lendingOverdue').length,
+      scheduleConflict: warnings.filter((w) => w.riskType === 'scheduleConflict').length,
+      returnCheckFail: warnings.filter((w) => w.riskType === 'returnCheckFail').length,
+      preCheckPending: warnings.filter((w) => w.riskType === 'preCheckPending').length
+    },
+    upcomingPerformances: schedules.filter((s) => {
+      const d = new Date(s.performanceDate);
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+      return diff >= 0 && diff <= 14;
+    }).length
+  };
+
+  res.json({ warnings, stats });
+});
+
+app.post('/api/availability-warnings/action', async (req, res) => {
+  const db = await readDb();
+  const { actionType, wigId, lendingId, preChecklistId, performanceDate, show, role } = req.body || {};
+  const now = new Date().toISOString();
+
+  try {
+    if (actionType === 'create-repair' && wigId) {
+      const wig = db.wigs?.find((w) => w.id === wigId);
+      if (!wig) return res.status(404).json({ error: '假发不存在' });
+
+      const item = {
+        id: `repairs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+        wigId,
+        type: '勾织',
+        handler: '',
+        status: '待处理',
+        dueDate: performanceDate || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        details: `演出可用性预警自动创建：${show ? `剧目「${show}」` : ''}${role ? `角色「${role}」` : ''}${wig.note ? `，备注：${wig.note}` : ''}`,
+        result: '',
+        createdAt: now,
+        updatedAt: now,
+        history: [stamp('创建', '演出可用性预警自动创建紧急维修单')]
+      };
+
+      db.repairs = db.repairs || [];
+      db.repairs.push(item);
+
+      if (wig.status !== '需要维修' && wig.status !== '紧急维修') {
+        wig.status = '需要维修';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('需要维修', '预警自动标记为需要维修'));
+      }
+
+      await writeDb(db);
+      return res.json({ success: true, item, message: '已创建维修单' });
+    }
+
+    if (actionType === 'mark-return' && lendingId) {
+      const lending = db.lendings?.find((l) => l.id === lendingId);
+      if (!lending) return res.status(404).json({ error: '借出记录不存在' });
+      if (lending.status !== '借出中') return res.status(409).json({ error: '只有借出中状态可以标记归还' });
+
+      lending.status = '归还待检查';
+      lending.actualReturnDate = new Date().toISOString().split('T')[0];
+      lending.updatedAt = now;
+      lending.history = lending.history || [];
+      lending.history.unshift(stamp('提交归还', '预警中心快捷标记归还待检查'));
+
+      const wig = db.wigs?.find((w) => w.id === lending.wigId);
+      if (wig) {
+        wig.status = '归还待检查';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('归还待检查', '预警中心快捷标记'));
+      }
+
+      await writeDb(db);
+      return res.json({ success: true, message: '已标记为归还待检查' });
+    }
+
+    if (actionType === 'mark-precheck' && preChecklistId) {
+      const checklist = db.preChecklists?.find((c) => c.id === preChecklistId);
+      if (!checklist) return res.status(404).json({ error: '检查任务不存在' });
+
+      checklist.status = '待检查';
+      checklist.updatedAt = now;
+      checklist.history = checklist.history || [];
+      checklist.history.unshift(stamp('重置待检查', '预警中心快捷操作'));
+
+      await writeDb(db);
+      return res.json({ success: true, message: '已标记为待检查' });
+    }
+
+    if (actionType === 'generate-precheck' && wigId && performanceDate) {
+      const existing = (db.preChecklists || []).find(
+        (c) => c.wigId === wigId && c.performanceDate === performanceDate
+      );
+      if (existing) return res.status(409).json({ error: '该演出日检查任务已存在' });
+
+      const checkItems = (config.checkItems || []).map((name) => ({
+        name,
+        result: '',
+        note: ''
+      }));
+
+      const item = {
+        id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+        performanceDate,
+        show: show || '',
+        role: role || '',
+        wigId,
+        status: '待检查',
+        checkItems: JSON.parse(JSON.stringify(checkItems)),
+        findings: '',
+        suggestions: '',
+        checker: '',
+        checkedAt: '',
+        createdAt: now,
+        updatedAt: now,
+        history: [stamp('生成检查清单', '演出可用性预警自动生成')]
+      };
+
+      db.preChecklists = db.preChecklists || [];
+      db.preChecklists.push(item);
+
+      const wig = db.wigs?.find((w) => w.id === wigId);
+      if (wig) {
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('演出前检查生成', '预警自动生成'));
+        wig.updatedAt = now;
+      }
+
+      await writeDb(db);
+      return res.json({ success: true, item, message: '已生成检查任务' });
+    }
+
+    res.status(400).json({ error: '无效的操作类型' });
+  } catch (error) {
+    res.status(500).json({ error: error.message || '操作失败' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`${config.title} running at http://localhost:${PORT}`);
 });

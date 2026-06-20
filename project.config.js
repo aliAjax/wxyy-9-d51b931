@@ -24,7 +24,10 @@ module.exports = {
     '归还检查通过': 'ok',
     '归还检查不通过': 'bad',
     '已复盘': 'ok',
-    '待复盘': 'warn'
+    '待复盘': 'warn',
+    '高风险': 'bad',
+    '中风险': 'warn',
+    '低风险': 'ok'
   },
   collections: {
     wigs: { label: '假发档案' },
@@ -34,7 +37,8 @@ module.exports = {
     consumables: { label: '耗材台账' },
     staff: { label: '服化团队' },
     preChecklists: { label: '演出前检查' },
-    lendings: { label: '借出归还' }
+    lendings: { label: '借出归还' },
+    availabilityWarnings: { label: '可用性预警' }
   },
   checkItems: [
     '外观完整性',
@@ -66,6 +70,12 @@ module.exports = {
     { label: '待复盘维修', collection: 'repairs', dynamic: 'pendingReview' }
   ],
   views: [
+    {
+      id: 'availabilityWarnings',
+      label: '演出可用性预警',
+      type: 'availabilityWarnings',
+      collection: 'availabilityWarnings'
+    },
     {
       id: 'dashboard',
       label: '看板',

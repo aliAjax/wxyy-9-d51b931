@@ -3,6 +3,7 @@ const state = {
   db: {},
   staffStats: {},
   dispatchBoard: {},
+  availabilityWarnings: { warnings: [], stats: {} },
   activeTab: ''
 };
 
@@ -1224,11 +1225,134 @@ function renderRepairReviewView(view) {
   </section>`;
 }
 
+function renderRiskTypeLabel(type) {
+  const map = {
+    wigUnavailable: '假发不可用',
+    repairLate: '维修超期',
+    lendingOverdue: '借出未归还',
+    scheduleConflict: '场次冲突',
+    returnCheckFail: '归还检查不通过',
+    preCheckPending: '演出前检查'
+  };
+  return map[type] || type;
+}
+
+function renderWarningCard(item) {
+  const levelTone = item.riskLevel === 'high' ? 'bad' : item.riskLevel === 'medium' ? 'warn' : 'ok';
+  const levelLabel = item.riskLevel === 'high' ? '高风险' : item.riskLevel === 'medium' ? '中风险' : '低风险';
+  const daysLabel = item.daysUntilPerformance < 0
+    ? `已过演出 ${Math.abs(item.daysUntilPerformance)} 天`
+    : item.daysUntilPerformance === 0
+    ? '今天演出'
+    : item.daysUntilPerformance <= 2
+    ? `还有 ${item.daysUntilPerformance} 天`
+    : `还有 ${item.daysUntilPerformance} 天`;
+  const daysTone = item.daysUntilPerformance <= 2 ? 'bad' : item.daysUntilPerformance <= 7 ? 'warn' : 'ok';
+
+  let cardClass = 'card warning-card';
+  if (item.riskLevel === 'high') cardClass += ' warning-high';
+  else if (item.riskLevel === 'medium') cardClass += ' warning-medium';
+
+  const relatedInfo = item.relatedItems?.lending?.actor
+    ? `<div class="meta">使用人：${escapeHtml(item.relatedItems.lending.actor)}${item.relatedItems.lending.expectedReturnDate ? `，预计归还：${escapeHtml(item.relatedItems.lending.expectedReturnDate)}` : ''}</div>`
+    : '';
+  const handlerInfo = item.relatedItems?.repair?.handler
+    ? `<div class="meta">维修处理人：${escapeHtml(relationLabel({ collection: 'staff', labelFields: ['name'] }, item.relatedItems.repair.handler))}${item.relatedItems.repair.dueDate ? `，截止：${escapeHtml(item.relatedItems.repair.dueDate)}` : ''}</div>`
+    : '';
+
+  return `<article class="${cardClass}" data-warning-id="${item.id}" data-wig-id="${item.wigId}" data-performance-date="${item.performanceDate}" data-show="${escapeHtml(item.show || '')}" data-role="${escapeHtml(item.role || '')}">
+    <div class="card-head">
+      <h3>${escapeHtml(item.title)}</h3>
+      <div class="warning-badges">
+        ${pill(levelLabel, levelTone)}
+        ${pill(renderRiskTypeLabel(item.riskType), '')}
+      </div>
+    </div>
+    <div class="warning-schedule-info">
+      <strong>${escapeHtml(item.show || '-')}</strong> · ${escapeHtml(item.role || '-')}
+      <span class="warning-date">${escapeHtml(item.performanceDate)}</span>
+      ${pill(daysLabel, daysTone)}
+    </div>
+    <div class="warning-wig">关联假发：${escapeHtml(item.wigLabel)}</div>
+    <p class="warning-description">${escapeHtml(item.description)}</p>
+    ${relatedInfo}
+    ${handlerInfo}
+    <div class="actions warning-actions">
+      ${item.actions.map((a) => a.type === 'link'
+        ? `<button class="ghost" data-warning-nav="${a.target}">${escapeHtml(a.label)}</button>`
+        : `<button class="${a.id === 'create-repair' ? 'danger' : 'ghost'}" data-warning-action="${a.id}" data-lending-id="${a.lendingId || ''}" data-prechecklist-id="${a.preChecklistId || ''}" data-repair-id="${a.repairId || ''}">${escapeHtml(a.label)}</button>`
+      ).join('')}
+    </div>
+  </article>`;
+}
+
+function renderAvailabilityWarningsView(view) {
+  const { warnings = [], stats = {} } = state.availabilityWarnings;
+  const byType = stats.byType || {};
+
+  return `<section class="view" id="${view.id}">
+    <div class="availability-header">
+      <h2>演出可用性预警中心</h2>
+      <div class="availability-refresh">
+        <button class="ghost" id="warnings-refresh">刷新预警</button>
+      </div>
+    </div>
+    <div class="availability-stats">
+      <div class="stat"><span>未来14天演出</span><strong>${stats.upcomingPerformances || 0}</strong></div>
+      <div class="stat warning-stat-high"><span>高风险</span><strong>${stats.high || 0}</strong></div>
+      <div class="stat warning-stat-medium"><span>中风险</span><strong>${stats.medium || 0}</strong></div>
+      <div class="stat"><span>预警总数</span><strong>${stats.total || 0}</strong></div>
+    </div>
+    <div class="availability-type-stats">
+      ${[
+        { key: 'wigUnavailable', label: '假发不可用', tone: 'bad' },
+        { key: 'repairLate', label: '维修超期', tone: 'bad' },
+        { key: 'lendingOverdue', label: '借出未归还', tone: 'warn' },
+        { key: 'scheduleConflict', label: '场次冲突', tone: 'warn' },
+        { key: 'returnCheckFail', label: '归还检查不通过', tone: 'warn' },
+        { key: 'preCheckPending', label: '检查待跟进', tone: 'warn' }
+      ].map((t) => `
+        <div class="type-stat-item">
+          <span class="pill ${byType[t.key] > 0 ? t.tone : ''}">${escapeHtml(t.label)}</span>
+          <strong>${byType[t.key] || 0}</strong>
+        </div>
+      `).join('')}
+    </div>
+    <div class="panel">
+      <div class="availability-toolbar">
+        <h3>风险清单（按演出日期排序）</h3>
+        <div class="availability-filters">
+          <select id="warnings-level-filter">
+            <option value="">全部风险等级</option>
+            <option value="high">仅高风险</option>
+            <option value="medium">仅中风险</option>
+          </select>
+          <select id="warnings-type-filter">
+            <option value="">全部风险类型</option>
+            <option value="wigUnavailable">假发不可用</option>
+            <option value="repairLate">维修超期</option>
+            <option value="lendingOverdue">借出未归还</option>
+            <option value="scheduleConflict">场次冲突</option>
+            <option value="returnCheckFail">归还检查不通过</option>
+            <option value="preCheckPending">检查待跟进</option>
+          </select>
+        </div>
+      </div>
+      <div class="list" id="warnings-list">
+        ${warnings.length
+          ? warnings.map(renderWarningCard).join('')
+          : '<div class="empty">太棒了！近期演出没有可用性风险 🎉</div>'}
+      </div>
+    </div>
+  </section>`;
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
   $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'availabilityWarnings') return renderAvailabilityWarningsView(view);
     if (view.type === 'dashboard') return renderDashboardView(view);
     if (view.type === 'preChecklist') return renderPreChecklistView(view);
     if (view.type === 'dispatchBoard') return renderDispatchBoardView(view);
@@ -1241,14 +1365,16 @@ function render() {
 }
 
 async function load() {
-  const [db, staffStats, dispatchBoard] = await Promise.all([
+  const [db, staffStats, dispatchBoard, availabilityWarnings] = await Promise.all([
     api('/api/db'),
     api('/api/staff-stats'),
-    api('/api/dispatch-board')
+    api('/api/dispatch-board'),
+    api('/api/availability-warnings')
   ]);
   state.db = db;
   state.staffStats = staffStats;
   state.dispatchBoard = dispatchBoard;
+  state.availabilityWarnings = availabilityWarnings;
   render();
 }
 
@@ -1638,6 +1764,76 @@ document.addEventListener('click', async (event) => {
       toast(error.message);
     }
   }
+
+  const warningsRefresh = event.target.closest('#warnings-refresh');
+  if (warningsRefresh) {
+    try {
+      state.availabilityWarnings = await api('/api/availability-warnings');
+      render();
+      setTab('availabilityWarnings');
+      toast('预警已刷新');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  const warningNav = event.target.closest('[data-warning-nav]');
+  if (warningNav) {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = warningNav.dataset.warningNav;
+    setTab(target);
+  }
+
+  const warningActionBtn = event.target.closest('[data-warning-action]');
+  if (warningActionBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const actionId = warningActionBtn.dataset.warningAction;
+    const card = warningActionBtn.closest('.warning-card');
+    if (!card) return;
+
+    const wigId = card.dataset.wigId;
+    const performanceDate = card.dataset.performanceDate;
+    const show = card.dataset.show;
+    const role = card.dataset.role;
+    const lendingId = warningActionBtn.dataset.lendingId;
+    const preChecklistId = warningActionBtn.dataset.prechecklistId;
+    const repairId = warningActionBtn.dataset.repairId;
+
+    let actionType = '';
+    if (actionId === 'create-repair') actionType = 'create-repair';
+    else if (actionId === 'mark-return') actionType = 'mark-return';
+    else if (actionId === 'mark-precheck') actionType = 'mark-precheck';
+    else if (actionId === 'generate-precheck') actionType = 'generate-precheck';
+    else if (actionId === 'reassign-repair') {
+      setTab('dispatchBoard');
+      toast('请到派工板重新指派');
+      return;
+    }
+
+    if (!actionType) return;
+
+    try {
+      const result = await api('/api/availability-warnings/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          actionType,
+          wigId,
+          lendingId,
+          preChecklistId,
+          repairId,
+          performanceDate,
+          show,
+          role
+        })
+      });
+      await load();
+      toast(result.message || '操作成功');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
 });
 
 document.addEventListener('input', (event) => {
@@ -1651,6 +1847,20 @@ document.addEventListener('input', (event) => {
       $(`#list-${view.id}`).innerHTML = renderRepairReviewList(view);
     } else {
       $(`#list-${view.id}`).innerHTML = renderList(view);
+    }
+  }
+
+  if (event.target.id === 'warnings-level-filter' || event.target.id === 'warnings-type-filter') {
+    const levelFilter = $('#warnings-level-filter')?.value || '';
+    const typeFilter = $('#warnings-type-filter')?.value || '';
+    let warnings = state.availabilityWarnings.warnings || [];
+    if (levelFilter) warnings = warnings.filter((w) => w.riskLevel === levelFilter);
+    if (typeFilter) warnings = warnings.filter((w) => w.riskType === typeFilter);
+    const listEl = $('#warnings-list');
+    if (listEl) {
+      listEl.innerHTML = warnings.length
+        ? warnings.map(renderWarningCard).join('')
+        : '<div class="empty">没有符合筛选条件的预警</div>';
     }
   }
 });
