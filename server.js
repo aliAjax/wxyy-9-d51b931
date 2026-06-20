@@ -88,6 +88,89 @@ app.delete('/api/:collection/:id', async (req, res) => {
   res.status(204).end();
 });
 
+app.patch('/api/repairs/:id/reassign', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+  const { newHandler, note } = req.body;
+
+  if (!newHandler) return res.status(400).json({ error: '请选择新的处理人' });
+
+  const repair = db.repairs?.find((entry) => entry.id === id);
+  if (!repair) return res.status(404).json({ error: '维修单不存在' });
+
+  const oldHandler = repair.handler;
+  const oldHandlerName = oldHandler
+    ? (db.staff?.find((s) => s.id === oldHandler)?.name || oldHandler)
+    : '未指派';
+  const newHandlerName = db.staff?.find((s) => s.id === newHandler)?.name || newHandler;
+
+  repair.handler = newHandler;
+  repair.updatedAt = new Date().toISOString();
+  repair.history = repair.history || [];
+  repair.history.unshift(stamp(
+    '重新指派',
+    note ? `从 ${oldHandlerName} 转交给 ${newHandlerName}，备注：${note}` : `从 ${oldHandlerName} 转交给 ${newHandlerName}`
+  ));
+
+  await writeDb(db);
+  res.json(repair);
+});
+
+app.get('/api/dispatch-board', async (req, res) => {
+  const db = await readDb();
+  const staff = db.staff || [];
+  const repairs = db.repairs || [];
+  const activeStatuses = ['待处理', '维修中', '待检查'];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const board = {};
+
+  for (const person of staff) {
+    const personRepairs = repairs.filter((r) => r.handler === person.id);
+    const activeRepairs = personRepairs.filter((r) => activeStatuses.includes(r.status));
+    const overdue = activeRepairs.filter((r) => {
+      if (!r.dueDate) return false;
+      const due = new Date(r.dueDate);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    });
+
+    board[person.id] = {
+      id: person.id,
+      name: person.name,
+      specialty: person.specialty,
+      contact: person.contact,
+      activeCount: activeRepairs.length,
+      overdueCount: overdue.length,
+      repairs: personRepairs
+        .filter((r) => activeStatuses.includes(r.status))
+        .sort((a, b) => {
+          const aOverdue = a.dueDate && new Date(a.dueDate) < today;
+          const bOverdue = b.dueDate && new Date(b.dueDate) < today;
+          if (aOverdue && !bOverdue) return -1;
+          if (!aOverdue && bOverdue) return 1;
+          return new Date(a.dueDate || 0) - new Date(b.dueDate || 0);
+        })
+    };
+  }
+
+  const unassigned = repairs.filter((r) => !r.handler && activeStatuses.includes(r.status));
+  if (unassigned.length) {
+    board['unassigned'] = {
+      id: 'unassigned',
+      name: '待分配',
+      specialty: '',
+      contact: '',
+      activeCount: unassigned.length,
+      overdueCount: unassigned.filter((r) => r.dueDate && new Date(r.dueDate) < today).length,
+      repairs: unassigned.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0))
+    };
+  }
+
+  res.json(board);
+});
+
 app.post('/api/action/:actionId/:id', async (req, res) => {
   const db = await readDb();
   const action = config.actions.find((entry) => entry.id === req.params.actionId);

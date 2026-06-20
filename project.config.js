@@ -183,6 +183,21 @@ module.exports = {
       ]
     },
     {
+      id: 'dispatchBoard',
+      label: '维修派工板',
+      type: 'dispatchBoard',
+      collection: 'repairs',
+      statusField: 'status',
+      statusOptions: ['待处理', '维修中', '待检查', '已完成'],
+      titleFields: ['type'],
+      relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },
+      detailFields: [
+        { label: '截止日期', name: 'dueDate' },
+        { label: '状态', name: 'status' }
+      ],
+      showWigStatus: true
+    },
+    {
       id: 'staff',
       label: '人员工作台',
       collection: 'staff',

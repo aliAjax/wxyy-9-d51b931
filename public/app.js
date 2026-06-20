@@ -2,6 +2,7 @@ const state = {
   config: null,
   db: {},
   staffStats: {},
+  dispatchBoard: {},
   activeTab: ''
 };
 
@@ -476,6 +477,182 @@ function renderCrudView(view) {
   </section>`;
 }
 
+function isOverdue(dueDate) {
+  if (!dueDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  return due < today;
+}
+
+function daysUntilDue(dueDate) {
+  if (!dueDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function renderDispatchCard(item, view, handlerId) {
+  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+  const statusValue = item[view.statusField];
+  const statusTone = toneFor(statusValue);
+  const overdue = isOverdue(item.dueDate);
+  const daysDiff = daysUntilDue(item.dueDate);
+  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
+
+  let dueLabel = item.dueDate || '无截止日期';
+  let dueTone = '';
+  if (item.dueDate) {
+    if (overdue) {
+      dueLabel = `已超期 ${Math.abs(daysDiff)} 天`;
+      dueTone = 'bad';
+    } else if (daysDiff === 0) {
+      dueLabel = '今天截止';
+      dueTone = 'warn';
+    } else if (daysDiff <= 2) {
+      dueLabel = `还剩 ${daysDiff} 天`;
+      dueTone = 'warn';
+    } else {
+      dueLabel = `还剩 ${daysDiff} 天`;
+    }
+  }
+
+  const details = (view.detailFields || []).map((field) => {
+    let value;
+    let tone = '';
+    if (field.name === 'dueDate') {
+      value = dueLabel;
+      tone = dueTone;
+    } else if (field.type === 'relation') {
+      value = relationLabel(field, item[field.name]);
+    } else {
+      value = item[field.name];
+    }
+    if (tone) {
+      const displayValue = value || '-';
+      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
+    }
+    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+  }).join('');
+
+  const actions = state.config.actions
+    .filter((action) => action.collection === view.collection)
+    .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
+    .join('');
+
+  let wigStatusBadge = '';
+  if (view.showWigStatus && item.wigId) {
+    const wigInfo = getWigStatus(item.wigId);
+    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+  }
+
+  const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
+
+  let cardClass = 'card dispatch-card';
+  if (overdue) cardClass += ' overdue';
+
+  return `<article class="${cardClass}" data-repair-id="${item.id}" data-current-handler="${handlerId || ''}">
+    <div class="card-head">
+      <h3>${escapeHtml(title)}</h3>
+      ${statusValue ? pill(statusValue, statusTone) : ''}
+    </div>
+    ${relation}
+    ${wigStatusBadge}
+    ${summary ? `<p class="dispatch-summary">${escapeHtml(summary)}</p>` : ''}
+    ${details ? `<div class="detail">${details}</div>` : ''}
+    <div class="dispatch-actions">
+      <button class="ghost" data-reassign="${item.id}">重新指派</button>
+    </div>
+    ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${historyHtml(item)}
+  </article>`;
+}
+
+function renderDispatchBoardView(view) {
+  const board = state.dispatchBoard || {};
+  const columns = Object.values(board).filter((col) => col.repairs && col.repairs.length > 0);
+  const allStaff = state.db.staff || [];
+  const unassigned = board['unassigned'];
+
+  const staffColumns = allStaff.map((person) => {
+    const col = board[person.id] || { id: person.id, name: person.name, activeCount: 0, overdueCount: 0, repairs: [] };
+    return col;
+  });
+
+  if (unassigned) {
+    staffColumns.unshift(unassigned);
+  }
+
+  return `<section class="view" id="${view.id}">
+    <div class="dispatch-board-header">
+      <h2>维修派工板</h2>
+      <div class="dispatch-board-stats">
+        <span class="dispatch-stat">
+          <strong>${staffColumns.reduce((sum, c) => sum + (c.repairs?.length || 0), 0)}</strong>
+          <span>在办任务</span>
+        </span>
+        <span class="dispatch-stat">
+          <strong>${staffColumns.reduce((sum, c) => sum + (c.overdueCount || 0), 0)}</strong>
+          <span>超期任务</span>
+        </span>
+        <span class="dispatch-stat">
+          <strong>${allStaff.length}</strong>
+          <span>处理人员</span>
+        </span>
+      </div>
+    </div>
+    <div class="dispatch-board">
+      ${staffColumns.map((col) => `
+        <div class="dispatch-column" data-handler="${col.id}">
+          <div class="dispatch-column-header">
+            <div class="dispatch-column-title">
+              <h3>${escapeHtml(col.name)}</h3>
+              ${col.specialty ? `<span class="dispatch-specialty">${escapeHtml(col.specialty)}</span>` : ''}
+            </div>
+            <div class="dispatch-column-counts">
+              <span class="pill">${col.repairs?.length || 0} 项</span>
+              ${col.overdueCount > 0 ? `<span class="pill bad">${col.overdueCount} 超期</span>` : ''}
+            </div>
+          </div>
+          <div class="dispatch-column-body" data-column-handler="${col.id}">
+            ${col.repairs && col.repairs.length
+              ? col.repairs.map((item) => renderDispatchCard(item, view, col.id)).join('')
+              : '<div class="dispatch-empty">暂无任务</div>'
+            }
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div id="reassign-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>重新指派维修单</h3>
+          <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="reassign-repair-info"></div>
+          <label>选择处理人
+            <select id="reassign-handler">
+              ${optionList(allStaff, ['name', 'specialty'])}
+            </select>
+          </label>
+          <label>转派备注
+            <textarea id="reassign-note" placeholder="可选：说明转派原因"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary" data-modal-close>取消</button>
+          <button id="reassign-confirm">确认指派</button>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
@@ -483,15 +660,21 @@ function render() {
   $('#main').innerHTML = state.config.views.map((view) => {
     if (view.type === 'dashboard') return renderDashboardView(view);
     if (view.type === 'preChecklist') return renderPreChecklistView(view);
+    if (view.type === 'dispatchBoard') return renderDispatchBoardView(view);
     return renderCrudView(view);
   }).join('');
   setTab(state.activeTab || state.config.views[0].id);
 }
 
 async function load() {
-  const [db, staffStats] = await Promise.all([api('/api/db'), api('/api/staff-stats')]);
+  const [db, staffStats, dispatchBoard] = await Promise.all([
+    api('/api/db'),
+    api('/api/staff-stats'),
+    api('/api/dispatch-board')
+  ]);
   state.db = db;
   state.staffStats = staffStats;
+  state.dispatchBoard = dispatchBoard;
   render();
 }
 
@@ -601,6 +784,80 @@ document.addEventListener('click', async (event) => {
       });
       await load();
       toast(`已生成 ${result.created} 个检查任务（共 ${result.total} 条排期）`);
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  const reassignBtn = event.target.closest('[data-reassign]');
+  if (reassignBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const repairId = reassignBtn.dataset.reassign;
+    const repair = state.db.repairs?.find((r) => r.id === repairId);
+    if (!repair) {
+      toast('维修单不存在');
+      return;
+    }
+
+    const repairInfo = $('#reassign-repair-info');
+    if (repairInfo) {
+      const wigInfo = repair.wigId
+        ? relationLabel({ collection: 'wigs', labelFields: ['role', 'show'] }, repair.wigId)
+        : '未关联假发';
+      repairInfo.innerHTML = `
+        <div class="reassign-info">
+          <p><strong>类型：</strong>${escapeHtml(repair.type || '-')}</p>
+          <p><strong>关联假发：</strong>${escapeHtml(wigInfo)}</p>
+          <p><strong>当前状态：</strong>${escapeHtml(repair.status || '-')}</p>
+          <p><strong>截止日期：</strong>${escapeHtml(repair.dueDate || '-')}</p>
+        </div>
+      `;
+    }
+
+    const handlerSelect = $('#reassign-handler');
+    if (handlerSelect && repair.handler) {
+      handlerSelect.value = repair.handler;
+    }
+
+    const noteInput = $('#reassign-note');
+    if (noteInput) noteInput.value = '';
+
+    const modal = $('#reassign-modal');
+    if (modal) {
+      modal.dataset.repairId = repairId;
+      modal.classList.add('show');
+    }
+  }
+
+  const modalClose = event.target.closest('[data-modal-close]');
+  if (modalClose) {
+    const modal = modalClose.closest('.modal');
+    if (modal) modal.classList.remove('show');
+  }
+
+  const reassignConfirm = event.target.closest('#reassign-confirm');
+  if (reassignConfirm) {
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = $('#reassign-modal');
+    const repairId = modal?.dataset.repairId;
+    const newHandler = $('#reassign-handler')?.value;
+    const note = $('#reassign-note')?.value || '';
+
+    if (!repairId || !newHandler) {
+      toast('请选择新的处理人');
+      return;
+    }
+
+    try {
+      await api(`/api/repairs/${repairId}/reassign`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newHandler, note })
+      });
+      if (modal) modal.classList.remove('show');
+      await load();
+      toast('已重新指派');
     } catch (error) {
       toast(error.message);
     }
