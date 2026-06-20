@@ -70,6 +70,18 @@ function optionList(items, labelFields) {
   }).join('');
 }
 
+function staffOptionList(currentHandler = '') {
+  const staff = state.db.staff || [];
+  const options = staff
+    .filter((person) => person.id !== currentHandler)
+    .map((person) => {
+      const label = [person.name, person.specialty].filter(Boolean).join(' / ');
+      return `<option value="${person.id}">${escapeHtml(label)}</option>`;
+    })
+    .join('');
+  return `<option value="">选择新的处理人</option>${options}`;
+}
+
 function formField(field) {
   const required = field.required ? 'required' : '';
   const value = field.default ? `value="${escapeHtml(field.default)}"` : '';
@@ -637,7 +649,7 @@ function renderDispatchBoardView(view) {
           <div id="reassign-repair-info"></div>
           <label>选择处理人
             <select id="reassign-handler">
-              ${optionList(allStaff, ['name', 'specialty'])}
+              <option value="">选择新的处理人</option>
             </select>
           </label>
           <label>转派备注
@@ -816,8 +828,9 @@ document.addEventListener('click', async (event) => {
     }
 
     const handlerSelect = $('#reassign-handler');
-    if (handlerSelect && repair.handler) {
-      handlerSelect.value = repair.handler;
+    if (handlerSelect) {
+      handlerSelect.innerHTML = staffOptionList(repair.handler || '');
+      handlerSelect.value = '';
     }
 
     const noteInput = $('#reassign-note');
@@ -847,6 +860,12 @@ document.addEventListener('click', async (event) => {
 
     if (!repairId || !newHandler) {
       toast('请选择新的处理人');
+      return;
+    }
+
+    const repair = state.db.repairs?.find((r) => r.id === repairId);
+    if (repair && newHandler === repair.handler) {
+      toast('请选择其他处理人');
       return;
     }
 

@@ -99,6 +99,10 @@ app.patch('/api/repairs/:id/reassign', async (req, res) => {
   if (!repair) return res.status(404).json({ error: '维修单不存在' });
 
   const oldHandler = repair.handler;
+  if (newHandler === oldHandler) {
+    return res.status(400).json({ error: '请选择其他处理人' });
+  }
+
   const oldHandlerName = oldHandler
     ? (db.staff?.find((s) => s.id === oldHandler)?.name || oldHandler)
     : '未指派';
