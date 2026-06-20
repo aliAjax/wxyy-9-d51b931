@@ -254,34 +254,6 @@ module.exports = {
         { field: 'status', value: '已完成' },
         { target: 'related', field: 'status', value: '可演出' }
       ]
-    },
-    {
-      id: 'check-pass',
-      label: '检查通过',
-      collection: 'preChecklists',
-      relation: { collection: 'wigs', localKey: 'wigId' },
-      patches: [
-        { field: 'status', value: '检查通过' },
-        { target: 'related', field: 'status', value: '可演出' }
-      ]
-    },
-    {
-      id: 'check-fail',
-      label: '检查不通过',
-      collection: 'preChecklists',
-      relation: { collection: 'wigs', localKey: 'wigId' },
-      patches: [
-        { field: 'status', value: '检查不通过' },
-        { target: 'related', field: 'status', value: '需要维修' }
-      ]
-    },
-    {
-      id: 'check-recheck',
-      label: '重新检查',
-      collection: 'preChecklists',
-      patches: [
-        { field: 'status', value: '待检查' }
-      ]
     }
   ]
 };
