@@ -97,6 +97,69 @@
           "note": "建档入库"
         }
       ]
+    },
+    {
+      "id": "wigs-1781922648195-e2f07",
+      "role": "花仙子",
+      "show": "绿野仙踪",
+      "color": "金色长卷",
+      "capSize": "M",
+      "hairline": "手勾蕾丝前额",
+      "location": "C柜-02",
+      "performanceDate": "2026-07-15",
+      "status": "可演出",
+      "note": "新制作",
+      "createdAt": "2026-06-20T02:30:48.195Z",
+      "updatedAt": "2026-06-20T02:30:48.195Z",
+      "history": [
+        {
+          "at": "2026-06-20T02:30:48.195Z",
+          "action": "批量导入创建",
+          "note": "新制作"
+        }
+      ]
+    },
+    {
+      "id": "wigs-1781922648195-78343",
+      "role": "女巫",
+      "show": "绿野仙踪",
+      "color": "黑色大卷",
+      "capSize": "L",
+      "hairline": "普通前网",
+      "location": "C柜-03",
+      "performanceDate": "2026-07-15",
+      "status": "可演出",
+      "note": "",
+      "createdAt": "2026-06-20T02:30:48.195Z",
+      "updatedAt": "2026-06-20T02:30:48.195Z",
+      "history": [
+        {
+          "at": "2026-06-20T02:30:48.195Z",
+          "action": "批量导入创建",
+          "note": "CSV 批量导入"
+        }
+      ]
+    },
+    {
+      "id": "wigs-1781922648195-f7df2",
+      "role": "国王",
+      "show": "哈姆雷特",
+      "color": "深棕短波",
+      "capSize": "S",
+      "hairline": "普通前网",
+      "location": "D柜-01",
+      "performanceDate": "2026-08-01",
+      "status": "可演出",
+      "note": "",
+      "createdAt": "2026-06-20T02:30:48.195Z",
+      "updatedAt": "2026-06-20T02:30:48.195Z",
+      "history": [
+        {
+          "at": "2026-06-20T02:30:48.195Z",
+          "action": "批量导入创建",
+          "note": "CSV 批量导入"
+        }
+      ]
     }
   ],
   "repairs": [

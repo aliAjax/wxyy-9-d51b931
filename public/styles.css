@@ -902,3 +902,242 @@ main {
     min-width: 0;
   }
 }
+
+.import-hint {
+  background: #f7f3eb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+}
+
+.import-hint p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.import-hint p:last-child {
+  margin-bottom: 0;
+}
+
+.import-required-mark {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.import-fields-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.import-field-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.import-field-chip.required {
+  background: rgba(17, 97, 92, .08);
+  border-color: rgba(17, 97, 92, .3);
+  color: var(--accent);
+}
+
+.import-hint-example {
+  margin-top: 12px !important;
+}
+
+.import-example {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.import-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.import-preview-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.import-preview-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.import-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.import-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 900px;
+}
+
+.import-preview-table thead {
+  background: var(--panel-2);
+}
+
+.import-preview-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink);
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+
+.import-preview-table th.required-field {
+  color: var(--accent);
+}
+
+.import-preview-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(216, 208, 194, .6);
+  vertical-align: middle;
+}
+
+.import-preview-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.import-col-num {
+  width: 60px;
+  text-align: center !important;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+td.import-col-num {
+  text-align: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.import-row-valid {
+  background: #fff;
+}
+
+.import-row-invalid {
+  background: rgba(161, 61, 61, .05);
+}
+
+.import-row-invalid td {
+  color: var(--ink);
+}
+
+.import-cell-missing {
+  background: rgba(161, 61, 61, .12);
+  color: var(--bad);
+  font-weight: 600;
+  position: relative;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.import-result-panel h3 {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.import-result-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #f7f3eb;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.import-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-result-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.import-failures {
+  margin-top: 16px;
+}
+
+.import-failures h4 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--bad);
+}
+
+.import-failures-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.import-failures-table thead {
+  background: rgba(161, 61, 61, .08);
+}
+
+.import-failures-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--bad);
+  border-bottom: 1px solid var(--line);
+}
+
+.import-failures-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(216, 208, 194, .6);
+}
+
+.import-failures-table tbody tr:last-child td {
+  border-bottom: none;
+}

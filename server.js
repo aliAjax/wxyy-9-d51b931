@@ -458,6 +458,69 @@ app.get('/api/staff-stats', async (req, res) => {
   res.json(stats);
 });
 
+app.post('/api/wigs/batch-import', async (req, res) => {
+  const db = await readDb();
+  const rows = req.body?.rows || [];
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ error: '请提供有效的导入数据' });
+  }
+
+  const requiredFields = ['role', 'show', 'color', 'location', 'performanceDate'];
+  const now = new Date().toISOString();
+  let successCount = 0;
+  let failCount = 0;
+  const failures = [];
+  const createdItems = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const missingFields = requiredFields.filter((f) => !row[f] || String(row[f]).trim() === '');
+
+    if (missingFields.length > 0) {
+      failCount++;
+      failures.push({
+        row: i + 1,
+        data: row,
+        missingFields
+      });
+      continue;
+    }
+
+    const item = {
+      id: `wigs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+      role: String(row.role).trim(),
+      show: String(row.show).trim(),
+      color: String(row.color).trim(),
+      capSize: row.capSize ? String(row.capSize).trim() : 'M',
+      hairline: row.hairline ? String(row.hairline).trim() : '普通前网',
+      location: String(row.location).trim(),
+      performanceDate: String(row.performanceDate).trim(),
+      status: row.status ? String(row.status).trim() : '可演出',
+      note: row.note ? String(row.note).trim() : '',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp('批量导入创建', row.note ? String(row.note).trim() : 'CSV 批量导入')]
+    };
+
+    db.wigs.push(item);
+    createdItems.push(item);
+    successCount++;
+  }
+
+  if (successCount > 0) {
+    await writeDb(db);
+  }
+
+  res.json({
+    success: successCount,
+    fail: failCount,
+    total: rows.length,
+    failures,
+    createdItems
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`${config.title} running at http://localhost:${PORT}`);
 });

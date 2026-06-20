@@ -584,6 +584,225 @@ function renderDispatchCard(item, view, handlerId) {
   </article>`;
 }
 
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { headers: [], rows: [] };
+
+  const parseLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const headers = parseLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseLine(lines[i]);
+    const row = {};
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] || '';
+    });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function normalizeFieldName(header) {
+  const map = {
+    '角色': 'role',
+    '剧目': 'show',
+    '发色': 'color',
+    '发网尺寸': 'capSize',
+    '发网': 'capSize',
+    '发际线类型': 'hairline',
+    '发际线': 'hairline',
+    '存放位置': 'location',
+    '位置': 'location',
+    '演出日期': 'performanceDate',
+    '日期': 'performanceDate',
+    '可用状态': 'status',
+    '状态': 'status',
+    '备注': 'note'
+  };
+  return map[header.trim()] || header.trim();
+}
+
+function normalizeRows(rows, headers) {
+  return rows.map((row) => {
+    const normalized = {};
+    headers.forEach((header) => {
+      const field = normalizeFieldName(header);
+      normalized[field] = row[header] || '';
+    });
+    return normalized;
+  });
+}
+
+function validateRows(rows, requiredFields) {
+  return rows.map((row, idx) => {
+    const missingFields = requiredFields.filter((f) => !row[f] || String(row[f]).trim() === '');
+    return {
+      rowIndex: idx + 1,
+      data: row,
+      missingFields,
+      isValid: missingFields.length === 0
+    };
+  });
+}
+
+function renderWigImportView(view) {
+  const fieldLabels = view.fieldLabels || {};
+  const requiredFields = view.requiredFields || [];
+  const importState = window.__wigImportState || {
+    csvText: '',
+    parsedRows: [],
+    validatedRows: [],
+    importResult: null
+  };
+
+  const hasParsedData = importState.validatedRows && importState.validatedRows.length > 0;
+  const validCount = importState.validatedRows?.filter((r) => r.isValid).length || 0;
+  const invalidCount = importState.validatedRows?.filter((r) => !r.isValid).length || 0;
+
+  let previewTable = '';
+  if (hasParsedData) {
+    const displayFields = ['role', 'show', 'color', 'capSize', 'hairline', 'location', 'performanceDate', 'status', 'note'];
+    previewTable = `
+      <div class="import-preview-header">
+        <h3>识别结果预览</h3>
+        <div class="import-preview-stats">
+          <span class="pill ok">${validCount} 行有效</span>
+          <span class="pill ${invalidCount > 0 ? 'bad' : ''}">${invalidCount} 行缺失</span>
+          <span class="pill">共 ${importState.validatedRows.length} 行</span>
+        </div>
+      </div>
+      <div class="import-table-wrapper">
+        <table class="import-preview-table">
+          <thead>
+            <tr>
+              <th class="import-col-num">行号</th>
+              ${displayFields.map((f) => `<th class="${requiredFields.includes(f) ? 'required-field' : ''}">${escapeHtml(fieldLabels[f] || f)}${requiredFields.includes(f) ? ' *' : ''}</th>`).join('')}
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${importState.validatedRows.map((row) => `
+              <tr class="${row.isValid ? 'import-row-valid' : 'import-row-invalid'}">
+                <td class="import-col-num">${row.rowIndex}</td>
+                ${displayFields.map((f) => {
+                  const isMissing = row.missingFields.includes(f);
+                  return `<td class="${isMissing ? 'import-cell-missing' : ''}">${escapeHtml(row.data[f] || '-')}</td>`;
+                }).join('')}
+                <td>
+                  ${row.isValid
+                    ? '<span class="pill ok">有效</span>'
+                    : `<span class="pill bad">缺少：${row.missingFields.map((f) => escapeHtml(fieldLabels[f] || f)).join('、')}</span>`
+                  }
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="import-actions">
+        <button class="secondary" id="import-clear-btn">清空重新粘贴</button>
+        <button class="danger" id="import-confirm-btn" ${validCount === 0 ? 'disabled' : ''}>
+          确认导入（${validCount} 条有效数据）
+        </button>
+      </div>
+    `;
+  }
+
+  let importResultHtml = '';
+  if (importState.importResult) {
+    const r = importState.importResult;
+    importResultHtml = `
+      <div class="import-result-panel">
+        <h3>导入结果</h3>
+        <div class="import-result-stats">
+          <div class="import-result-item">
+            <span class="import-result-label">总计</span>
+            <span class="pill">${r.total}</span>
+          </div>
+          <div class="import-result-item">
+            <span class="import-result-label">成功</span>
+            <span class="pill ok">${r.success}</span>
+          </div>
+          <div class="import-result-item">
+            <span class="import-result-label">失败</span>
+            <span class="pill ${r.fail > 0 ? 'bad' : ''}">${r.fail}</span>
+          </div>
+        </div>
+        ${r.failures && r.failures.length > 0 ? `
+          <div class="import-failures">
+            <h4>失败行详情</h4>
+            <table class="import-failures-table">
+              <thead>
+                <tr>
+                  <th>行号</th>
+                  <th>缺少字段</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${r.failures.map((f) => `
+                  <tr>
+                    <td>${f.row}</td>
+                    <td>${f.missingFields.map((field) => escapeHtml(fieldLabels[field] || field)).join('、')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  return `<section class="view" id="${view.id}">
+    <div class="panel">
+      <h2>${escapeHtml(view.formTitle)}</h2>
+      <div class="import-hint">
+        <p><strong>使用说明：</strong>请在下方文本框粘贴 CSV 格式数据，第一行为表头，支持以下字段（带 <span class="import-required-mark">*</span> 为必填）：</p>
+        <div class="import-fields-list">
+          ${requiredFields.map((f) => `<span class="import-field-chip required">${escapeHtml(fieldLabels[f] || f)} *</span>`).join('')}
+          ${['capSize', 'hairline', 'status', 'note'].map((f) => `<span class="import-field-chip">${escapeHtml(fieldLabels[f] || f)}</span>`).join('')}
+        </div>
+        <p class="import-hint-example"><strong>示例 CSV：</strong></p>
+        <pre class="import-example">角色,剧目,发色,发网尺寸,发际线类型,存放位置,演出日期,可用状态,备注
+花仙子,绿野仙踪,金色长卷,M,手勾蕾丝前额,C柜-02,2026-07-15,可演出,新制作
+女巫,绿野仙踪,黑色大卷,L,普通前网,C柜-03,2026-07-15,可演出,</pre>
+      </div>
+      <label class="wide">粘贴 CSV 数据
+        <textarea id="csv-input" placeholder="在此粘贴 CSV 文本，第一行为表头...">${escapeHtml(importState.csvText)}</textarea>
+      </label>
+      <div class="actions">
+        <button id="csv-parse-btn">解析预览</button>
+      </div>
+    </div>
+    ${previewTable ? `<div class="panel">${previewTable}</div>` : ''}
+    ${importResultHtml ? `<div class="panel">${importResultHtml}</div>` : ''}
+  </section>`;
+}
+
 function renderDispatchBoardView(view) {
   const board = state.dispatchBoard || {};
   const columns = Object.values(board).filter((col) => col.repairs && col.repairs.length > 0);
@@ -673,6 +892,7 @@ function render() {
     if (view.type === 'dashboard') return renderDashboardView(view);
     if (view.type === 'preChecklist') return renderPreChecklistView(view);
     if (view.type === 'dispatchBoard') return renderDispatchBoardView(view);
+    if (view.type === 'wigImport') return renderWigImportView(view);
     return renderCrudView(view);
   }).join('');
   setTab(state.activeTab || state.config.views[0].id);
@@ -698,6 +918,9 @@ document.addEventListener('click', async (event) => {
   const checkSubmit = event.target.closest('[data-check-submit]');
   const checkReset = event.target.closest('[data-check-reset]');
   const generateBtn = event.target.closest('[id^="generate-btn-"]');
+  const csvParseBtn = event.target.closest('#csv-parse-btn');
+  const importClearBtn = event.target.closest('#import-clear-btn');
+  const importConfirmBtn = event.target.closest('#import-confirm-btn');
 
   if (tab) setTab(tab.dataset.tab);
   if (action) {
@@ -877,6 +1100,78 @@ document.addEventListener('click', async (event) => {
       if (modal) modal.classList.remove('show');
       await load();
       toast('已重新指派');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  if (csvParseBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const csvText = $('#csv-input')?.value || '';
+    if (!csvText.trim()) {
+      toast('请粘贴 CSV 数据');
+      return;
+    }
+    const { headers, rows } = parseCSV(csvText);
+    if (rows.length === 0) {
+      toast('未识别到有效数据行');
+      return;
+    }
+    const normalizedRows = normalizeRows(rows, headers);
+    const view = state.config.views.find((v) => v.type === 'wigImport');
+    const validated = validateRows(normalizedRows, view?.requiredFields || []);
+    window.__wigImportState = {
+      csvText,
+      parsedRows: rows,
+      validatedRows: validated,
+      importResult: null
+    };
+    render();
+    setTab('wigImport');
+    const validCount = validated.filter((r) => r.isValid).length;
+    toast(`已解析 ${validated.length} 行，${validCount} 行有效`);
+  }
+
+  if (importClearBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    window.__wigImportState = {
+      csvText: '',
+      parsedRows: [],
+      validatedRows: [],
+      importResult: null
+    };
+    render();
+    setTab('wigImport');
+  }
+
+  if (importConfirmBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const importState = window.__wigImportState;
+    if (!importState || !importState.validatedRows?.length) {
+      toast('请先解析 CSV 数据');
+      return;
+    }
+    const validRows = importState.validatedRows.filter((r) => r.isValid).map((r) => r.data);
+    if (validRows.length === 0) {
+      toast('没有可导入的有效数据');
+      return;
+    }
+    try {
+      const result = await api('/api/wigs/batch-import', {
+        method: 'POST',
+        body: JSON.stringify({ rows: validRows })
+      });
+      window.__wigImportState = {
+        ...importState,
+        importResult: result
+      };
+      render();
+      setTab('wigImport');
+      await load();
+      toast(`导入完成：成功 ${result.success} 条，失败 ${result.fail} 条`);
     } catch (error) {
       toast(error.message);
     }

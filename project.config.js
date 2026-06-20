@@ -251,6 +251,27 @@ module.exports = {
         { label: '安全库存', name: 'safeStock', type: 'number', required: true, default: 0 },
         { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
+    },
+    {
+      id: 'wigImport',
+      label: '批量导入',
+      type: 'wigImport',
+      collection: 'wigs',
+      formTitle: '批量导入假发档案',
+      listTitle: '导入预览',
+      requiredFields: ['role', 'show', 'color', 'location', 'performanceDate'],
+      fieldLabels: {
+        role: '角色',
+        show: '剧目',
+        color: '发色',
+        capSize: '发网尺寸',
+        hairline: '发际线类型',
+        location: '存放位置',
+        performanceDate: '演出日期',
+        status: '可用状态',
+        note: '备注'
+      },
+      defaultStatus: '可演出'
     }
   ],
   actions: [
