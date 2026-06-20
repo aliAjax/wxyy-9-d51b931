@@ -879,6 +879,141 @@ function renderDispatchBoardView(view) {
   </section>`;
 }
 
+function renderLendingCard(item, view) {
+  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+  let statusValue = item[view.statusField];
+  let statusTone = toneFor(statusValue);
+  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
+  const details = (view.detailFields || []).map((field) => {
+    let value;
+    let tone = '';
+    if (field.type === 'dynamic' && field.name === 'wigStatus') {
+      const wigInfo = getWigStatus(item.wigId);
+      value = wigInfo.status;
+      tone = wigInfo.tone;
+    } else if (field.type === 'relation') {
+      value = relationLabel(field, item[field.name]);
+    } else {
+      value = item[field.name];
+    }
+    if (tone) {
+      const displayValue = value || '-';
+      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
+    }
+    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+  }).join('');
+
+  const checkItemsHtml = renderCheckItems(item.checkItems || []);
+
+  const actions = state.config.actions
+    .filter((action) => action.collection === view.collection)
+    .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
+    .join('');
+
+  let wigStatusBadge = '';
+  if (view.showWigStatus && item.wigId) {
+    const wigInfo = getWigStatus(item.wigId);
+    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+  }
+
+  const findingsHtml = item.checkFindings ? `<div class="findings"><strong>检查发现：</strong>${escapeHtml(item.checkFindings)}</div>` : '';
+
+  const actualReturnHtml = item.actualReturnDate ? `<div class="meta">实际归还：${escapeHtml(item.actualReturnDate)}</div>` : '';
+  const checkerHtml = item.checker ? `<div class="meta">检查人：${escapeHtml(item.checker)}</div>` : '';
+
+  return `<article class="card check-card lending-card">
+    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : ''}</div>
+    ${relation}
+    ${wigStatusBadge}
+    ${actualReturnHtml}
+    ${checkerHtml}
+    ${checkItemsHtml}
+    ${findingsHtml}
+    ${details ? `<div class="detail">${details}</div>` : ''}
+    ${item.status === '借出中' || item.status === '归还待检查' ? `
+    <div class="inline-actions">
+      <button class="ghost" data-lending-check="${item.id}">${item.status === '借出中' ? '提交归还' : '查看/检查'}</button>
+    </div>
+    ` : ''}
+    ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${historyHtml(item)}
+    <div class="check-form-panel" id="lending-check-form-${item.id}" style="display:none;">
+      <h4>归还检查记录</h4>
+      <div class="check-form-items">
+        ${(item.checkItems || state.config.checkItems || []).map((ci, idx) => `
+          <div class="check-form-item">
+            <label class="check-item-label">${escapeHtml(ci.name || ci)}</label>
+            <select data-lending-check-idx="${idx}" data-lending-check-field="result">
+              <option value="">未检查</option>
+              <option value="通过" ${ci.result === '通过' ? 'selected' : ''}>通过</option>
+              <option value="不通过" ${ci.result === '不通过' ? 'selected' : ''}>不通过</option>
+            </select>
+            <input type="text" data-lending-check-idx="${idx}" data-lending-check-field="note" placeholder="备注" value="${escapeHtml(ci.note || '')}">
+          </div>
+        `).join('')}
+      </div>
+      <label>检查发现<textarea name="checkFindings" data-lending-check-text="checkFindings">${escapeHtml(item.checkFindings || '')}</textarea></label>
+      <label>检查人<input type="text" name="checker" data-lending-check-text="checker" value="${escapeHtml(item.checker || '')}"></label>
+      <div class="actions">
+        <button class="secondary" data-lending-check-cancel="${item.id}">取消</button>
+        ${item.status === '归还待检查' || item.status === '归还检查通过' || item.status === '归还检查不通过' ? `<button class="ghost" data-lending-check-reset="${item.id}">重置为待检查</button>` : item.status === '借出中' ? `<button class="ghost" data-lending-check-submit="归还待检查" data-lending-check-id="${item.id}">提交归还</button>` : ''}
+        ${item.status !== '借出中' ? '' : ''}
+        <button class="ghost" data-lending-check-submit="归还检查通过" data-lending-check-id="${item.id}">检查通过</button>
+        <button class="danger" data-lending-check-submit="归还检查不通过" data-lending-check-id="${item.id}">检查不通过</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderLendingList(view) {
+  const query = $(`#search-${view.id}`)?.value.trim() || '';
+  const status = $(`#status-${view.id}`)?.value || '';
+  let items = [...(state.db[view.collection] || [])];
+
+  items.sort((a, b) => {
+    const dateA = new Date(a.lendDate || 0);
+    const dateB = new Date(b.lendDate || 0);
+    return dateB - dateA;
+  });
+
+  if (query) {
+    items = items.filter((item) => view.searchFields.some((field) => {
+      const value = String(item[field] || '');
+      return value.includes(query);
+    }));
+  }
+  if (status) {
+    items = items.filter((item) => item[view.statusField] === status);
+  }
+  return items.length ? items.map((item) => renderLendingCard(item, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+}
+
+function renderLendingView(view) {
+  const statusOptions = view.statusOptions || [];
+  return `<section class="view" id="${view.id}">
+    <div class="grid">
+      <div class="panel">
+        <h2>${escapeHtml(view.formTitle)}</h2>
+        <form class="single-create-form" data-create="${view.collection}" data-view="${view.id}">
+          <div class="form-grid">${view.fields.map(formField).join('')}</div>
+          <div class="actions"><button>${escapeHtml(view.submitLabel || '保存')}</button></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>${escapeHtml(view.listTitle)}</h2>
+        <div class="toolbar">
+          <input id="search-${view.id}" placeholder="${escapeHtml(view.searchPlaceholder || '搜索')}">
+          <select id="status-${view.id}">
+            <option value="">全部状态</option>
+            ${statusOptions.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="list" id="list-${view.id}">${renderLendingList(view)}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
@@ -888,6 +1023,7 @@ function render() {
     if (view.type === 'preChecklist') return renderPreChecklistView(view);
     if (view.type === 'dispatchBoard') return renderDispatchBoardView(view);
     if (view.type === 'wigImport') return renderWigImportView(view);
+    if (view.type === 'lending') return renderLendingView(view);
     return renderCrudView(view);
   }).join('');
   setTab(state.activeTab || state.config.views[0].id);
@@ -990,6 +1126,83 @@ document.addEventListener('click', async (event) => {
         method: 'PATCH',
         body: JSON.stringify({
           status: '待检查',
+          reset: true
+        })
+      });
+      await load();
+      toast('已重置为待检查');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  const lendingCheckEdit = event.target.closest('[data-lending-check]');
+  const lendingCheckCancel = event.target.closest('[data-lending-check-cancel]');
+  const lendingCheckSubmit = event.target.closest('[data-lending-check-submit]');
+  const lendingCheckReset = event.target.closest('[data-lending-check-reset]');
+
+  if (lendingCheckEdit) {
+    const id = lendingCheckEdit.dataset.lendingCheck;
+    const panel = document.getElementById(`lending-check-form-${id}`);
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+  if (lendingCheckCancel) {
+    const id = lendingCheckCancel.dataset.lendingCheckCancel;
+    const panel = document.getElementById(`lending-check-form-${id}`);
+    if (panel) panel.style.display = 'none';
+  }
+  if (lendingCheckSubmit) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = lendingCheckSubmit.dataset.lendingCheckId;
+    const status = lendingCheckSubmit.dataset.lendingCheckSubmit;
+    const card = lendingCheckSubmit.closest('.lending-card');
+    if (!card) return;
+
+    const checkItems = [];
+    const itemEls = card.querySelectorAll('[data-lending-check-idx]');
+    const itemMap = new Map();
+    itemEls.forEach((el) => {
+      const idx = el.dataset.lendingCheckIdx;
+      const field = el.dataset.lendingCheckField;
+      if (!itemMap.has(idx)) itemMap.set(idx, {});
+      itemMap.get(idx)[field] = el.value;
+    });
+    itemMap.forEach((val, idx) => {
+      const labelEl = card.querySelector(`[data-lending-check-idx="${idx}"][data-lending-check-field="result"]`);
+      const nameEl = labelEl?.closest('.check-form-item')?.querySelector('.check-item-label');
+      checkItems.push({
+        name: nameEl?.textContent || `检查项${Number(idx) + 1}`,
+        result: val.result || '',
+        note: val.note || ''
+      });
+    });
+
+    const checkFindings = card.querySelector('[data-lending-check-text="checkFindings"]')?.value || '';
+    const checker = card.querySelector('[data-lending-check-text="checker"]')?.value || '';
+
+    try {
+      await api(`/api/lendings/${id}/check`, {
+        method: 'PATCH',
+        body: JSON.stringify({ checkItems, checkFindings, checker, status })
+      });
+      await load();
+      toast(status === '归还待检查' ? '已提交归还' : `已${status}`);
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+  if (lendingCheckReset) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = lendingCheckReset.dataset.lendingCheckReset;
+    try {
+      await api(`/api/lendings/${id}/check`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: '归还待检查',
           reset: true
         })
       });
@@ -1179,6 +1392,8 @@ document.addEventListener('input', (event) => {
   if (view) {
     if (view.type === 'preChecklist') {
       $(`#list-${view.id}`).innerHTML = renderPreChecklistList(view);
+    } else if (view.type === 'lending') {
+      $(`#list-${view.id}`).innerHTML = renderLendingList(view);
     } else {
       $(`#list-${view.id}`).innerHTML = renderList(view);
     }
@@ -1202,6 +1417,17 @@ document.addEventListener('submit', async (event) => {
     payload.checker = '';
     payload.checkedAt = '';
     if (!payload.status) payload.status = '待检查';
+  }
+  if (view.collection === 'lendings') {
+    payload.checkItems = (state.config.checkItems || []).map((name) => ({
+      name,
+      result: '',
+      note: ''
+    }));
+    payload.checkFindings = '';
+    payload.checker = '';
+    payload.checkedAt = '';
+    if (!payload.status) payload.status = '借出中';
   }
   await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(payload) });
   form.reset();

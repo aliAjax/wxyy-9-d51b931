@@ -1087,3 +1087,59 @@ td.import-col-num {
   font-size: 15px;
   color: var(--bad);
 }
+
+.lending-card {
+  border-left: 4px solid var(--accent);
+}
+
+.lending-card .inline-actions {
+  margin-top: 12px;
+}
+
+.lending-card .meta {
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.lending-card .check-form-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px solid var(--line);
+}
+
+.lending-card .check-form-panel h4 {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.lending-card .check-form-items {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.lending-card .check-form-item {
+  display: grid;
+  grid-template-columns: 120px 100px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #f7f3eb;
+  border-radius: 6px;
+}
+
+.lending-card .check-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .lending-card .check-form-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

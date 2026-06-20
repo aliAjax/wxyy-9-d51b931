@@ -43,6 +43,149 @@ app.get('/api/db', async (req, res) => {
   res.json(db);
 });
 
+app.post('/api/lendings', async (req, res) => {
+  const db = await readDb();
+  const now = new Date().toISOString();
+  const body = req.body || {};
+
+  const wig = db.wigs?.find((w) => w.id === body.wigId);
+  if (!wig) return res.status(404).json({ error: '假发不存在' });
+
+  if (wig.status === '借出中' || wig.status === '归还待检查') {
+    return res.status(409).json({ error: '该假发已处于借出或待检查状态，不能重复借出' });
+  }
+
+  const activeLending = (db.lendings || []).find(
+    (l) => l.wigId === body.wigId && (l.status === '借出中' || l.status === '归还待检查')
+  );
+  if (activeLending) {
+    return res.status(409).json({ error: '该假发存在未完成的借出记录' });
+  }
+
+  const item = {
+    id: `lending-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+    wigId: body.wigId,
+    actor: body.actor || '',
+    show: body.show || '',
+    role: body.role || '',
+    lendDate: body.lendDate || new Date().toISOString().split('T')[0],
+    expectedReturnDate: body.expectedReturnDate || '',
+    actualReturnDate: '',
+    status: body.status || '借出中',
+    checkItems: (config.checkItems || []).map((name) => ({
+      name,
+      result: '',
+      note: ''
+    })),
+    checkFindings: '',
+    checker: '',
+    checkedAt: '',
+    note: body.note || '',
+    createdAt: now,
+    updatedAt: now,
+    history: [stamp('登记借出', body.note ? body.note : `借给 ${body.actor || '演员'}，用于 ${body.show || '演出'}`)]
+  };
+
+  db.lendings = db.lendings || [];
+  db.lendings.push(item);
+
+  if (wig) {
+    wig.status = '借出中';
+    wig.updatedAt = now;
+    wig.history = wig.history || [];
+    wig.history.unshift(stamp('借出', `借给 ${body.actor || '演员'}，用于 ${body.show || '演出'}`));
+  }
+
+  await writeDb(db);
+  res.status(201).json(item);
+});
+
+app.patch('/api/lendings/:id/check', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+  const { checkItems, checkFindings, checker, status, reset } = req.body;
+
+  const lending = (db.lendings || []).find((l) => l.id === id);
+  if (!lending) return res.status(404).json({ error: '借出记录不存在' });
+
+  const now = new Date().toISOString();
+  const prevStatus = lending.status;
+
+  const wig = (db.wigs || []).find((w) => w.id === lending.wigId);
+
+  if (reset) {
+    lending.checkItems = (config.checkItems || []).map((name) => ({
+      name,
+      result: '',
+      note: ''
+    }));
+    lending.checkFindings = '';
+    lending.checker = '';
+    lending.checkedAt = '';
+    lending.status = '归还待检查';
+    lending.updatedAt = now;
+    lending.history = lending.history || [];
+    lending.history.unshift(stamp('重新检查', '清空旧结果，重置为归还待检查状态'));
+
+    if (wig) {
+      wig.updatedAt = now;
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('归还重新检查', '归还检查已重置'));
+    }
+  } else {
+    if (checkItems) lending.checkItems = checkItems;
+    if (checkFindings !== undefined) lending.checkFindings = checkFindings;
+    if (checker) lending.checker = checker;
+
+    if (status && status !== prevStatus) {
+      if (status === '归还检查通过') {
+        lending.status = status;
+        lending.actualReturnDate = new Date().toISOString().split('T')[0];
+        lending.checkedAt = now;
+        if (wig) {
+          wig.status = '可演出';
+          wig.updatedAt = now;
+          wig.history = wig.history || [];
+          wig.history.unshift(stamp('归还检查通过', '归还检查通过，恢复为可演出状态'));
+        }
+        lending.history = lending.history || [];
+        lending.history.unshift(stamp('归还检查通过', checkFindings || '检查合格，已归还'));
+      } else if (status === '归还检查不通过') {
+        lending.status = status;
+        lending.actualReturnDate = new Date().toISOString().split('T')[0];
+        lending.checkedAt = now;
+        if (wig) {
+          wig.status = '需要维修';
+          wig.updatedAt = now;
+          wig.history = wig.history || [];
+          wig.history.unshift(stamp('归还检查不通过', `发现问题：${checkFindings || '需维修'}`));
+        }
+        lending.history = lending.history || [];
+        lending.history.unshift(stamp('归还检查不通过', checkFindings || '发现问题需维修'));
+      } else if (status === '归还待检查' && prevStatus === '借出中') {
+        lending.status = status;
+        lending.actualReturnDate = new Date().toISOString().split('T')[0];
+        lending.history = lending.history || [];
+        lending.history.unshift(stamp('提交归还', '已归还，待检查'));
+        if (wig) {
+          wig.status = '归还待检查';
+          wig.updatedAt = now;
+          wig.history = wig.history || [];
+          wig.history.unshift(stamp('归还待检查', '演员已归还，待检查验收'));
+        }
+      }
+    } else if (status === '归还待检查' && prevStatus === '归还待检查') {
+      lending.history = lending.history || [];
+      lending.history.unshift(stamp('保存草稿', checkFindings || '已保存检查草稿'));
+    }
+
+    lending.updatedAt = now;
+  }
+
+  await writeDb(db);
+  res.json(lending);
+});
+
 app.post('/api/:collection', async (req, res) => {
   const db = await readDb();
   const { collection } = req.params;
