@@ -158,6 +158,87 @@ function runAction(db, action, item) {
   return { item };
 }
 
+app.get('/api/staff-stats', async (req, res) => {
+  const db = await readDb();
+  const repairs = db.repairs || [];
+  const staff = db.staff || [];
+  const stats = {};
+  const activeStatuses = ['待处理', '维修中', '待检查'];
+  const allRepairTypes = new Set();
+  for (const r of repairs) {
+    if (r.type) allRepairTypes.add(r.type);
+  }
+  for (const person of staff) {
+    stats[person.id] = {
+      id: person.id,
+      name: person.name,
+      specialty: person.specialty,
+      contact: person.contact,
+      pending: 0,
+      repairing: 0,
+      checking: 0,
+      completed: 0,
+      total: 0,
+      activeCount: 0,
+      workload: '空闲',
+      workloadLevel: 0,
+      repairTypes: []
+    };
+  }
+  for (const r of repairs) {
+    const handlerId = r.handler;
+    if (!handlerId) continue;
+    if (!stats[handlerId]) {
+      stats[handlerId] = {
+        id: handlerId,
+        name: handlerId,
+        specialty: '',
+        contact: '',
+        pending: 0,
+        repairing: 0,
+        checking: 0,
+        completed: 0,
+        total: 0,
+        activeCount: 0,
+        workload: '空闲',
+        workloadLevel: 0,
+        repairTypes: []
+      };
+    }
+    if (r.status === '待处理') stats[handlerId].pending++;
+    else if (r.status === '维修中') stats[handlerId].repairing++;
+    else if (r.status === '待检查') stats[handlerId].checking++;
+    else if (r.status === '已完成') stats[handlerId].completed++;
+    stats[handlerId].total++;
+    if (activeStatuses.includes(r.status)) {
+      stats[handlerId].activeCount++;
+    }
+    if (r.type && !stats[handlerId].repairTypes.includes(r.type)) {
+      stats[handlerId].repairTypes.push(r.type);
+    }
+  }
+  for (const id of Object.keys(stats)) {
+    const s = stats[id];
+    if (s.activeCount === 0) {
+      s.workload = '空闲';
+      s.workloadLevel = 0;
+    } else if (s.activeCount <= 2) {
+      s.workload = '轻松';
+      s.workloadLevel = 1;
+    } else if (s.activeCount <= 4) {
+      s.workload = '适中';
+      s.workloadLevel = 2;
+    } else if (s.activeCount <= 6) {
+      s.workload = '繁忙';
+      s.workloadLevel = 3;
+    } else {
+      s.workload = '过载';
+      s.workloadLevel = 4;
+    }
+  }
+  res.json(stats);
+});
+
 app.listen(PORT, () => {
   console.log(`${config.title} running at http://localhost:${PORT}`);
 });

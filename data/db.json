@@ -84,7 +84,7 @@
       "id": "repair-seed-1",
       "wigId": "wig-seed-1",
       "type": "补发",
-      "handler": "林岚",
+      "handler": "staff-seed-1",
       "status": "维修中",
       "dueDate": "2026-06-27",
       "details": "补右侧鬓角并重新压发际线",
@@ -96,6 +96,216 @@
           "at": "2026-06-18T10:10:00.000Z",
           "action": "创建",
           "note": "补发任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-2",
+      "wigId": "wig-seed-1",
+      "type": "勾织",
+      "handler": "staff-seed-1",
+      "status": "待处理",
+      "dueDate": "2026-06-30",
+      "details": "手勾蕾丝前额脱线需重新勾织",
+      "result": "",
+      "createdAt": "2026-06-19T09:00:00.000Z",
+      "updatedAt": "2026-06-19T09:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T09:00:00.000Z",
+          "action": "创建",
+          "note": "勾织任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-3",
+      "wigId": "wig-seed-2",
+      "type": "清洗",
+      "handler": "staff-seed-2",
+      "status": "待处理",
+      "dueDate": "2026-07-01",
+      "details": "演出后深度清洗并补充营养液",
+      "result": "",
+      "createdAt": "2026-06-19T10:00:00.000Z",
+      "updatedAt": "2026-06-19T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T10:00:00.000Z",
+          "action": "创建",
+          "note": "清洗任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-4",
+      "wigId": "wig-seed-3",
+      "type": "定型",
+      "handler": "staff-seed-2",
+      "status": "待检查",
+      "dueDate": "2026-06-25",
+      "details": "金色渐变区重新定型保持渐变层次",
+      "result": "",
+      "createdAt": "2026-06-17T14:00:00.000Z",
+      "updatedAt": "2026-06-19T11:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T11:00:00.000Z",
+          "action": "待检查",
+          "note": "定型完成待检查"
+        },
+        {
+          "at": "2026-06-17T14:00:00.000Z",
+          "action": "创建",
+          "note": "定型任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-5",
+      "wigId": "wig-seed-2",
+      "type": "归还检查",
+      "handler": "staff-seed-3",
+      "status": "维修中",
+      "dueDate": "2026-06-28",
+      "details": "检查王子假发归还后整体状态",
+      "result": "",
+      "createdAt": "2026-06-18T16:00:00.000Z",
+      "updatedAt": "2026-06-19T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T08:00:00.000Z",
+          "action": "维修中",
+          "note": "正在检查"
+        },
+        {
+          "at": "2026-06-18T16:00:00.000Z",
+          "action": "创建",
+          "note": "归还检查任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-6",
+      "wigId": "wig-seed-3",
+      "type": "勾织",
+      "handler": "staff-seed-1",
+      "status": "待处理",
+      "dueDate": "2026-07-02",
+      "details": "发缝处发丝稀疏需补勾",
+      "result": "",
+      "createdAt": "2026-06-19T14:00:00.000Z",
+      "updatedAt": "2026-06-19T14:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T14:00:00.000Z",
+          "action": "创建",
+          "note": "发缝补勾任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-7",
+      "wigId": "wig-seed-1",
+      "type": "定型",
+      "handler": "staff-seed-4",
+      "status": "待处理",
+      "dueDate": "2026-06-29",
+      "details": "维修完成后整体造型定型",
+      "result": "",
+      "createdAt": "2026-06-19T15:00:00.000Z",
+      "updatedAt": "2026-06-19T15:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T15:00:00.000Z",
+          "action": "创建",
+          "note": "定型任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-8",
+      "wigId": "wig-seed-2",
+      "type": "补发",
+      "handler": "staff-seed-5",
+      "status": "待检查",
+      "dueDate": "2026-06-26",
+      "details": "头顶发量补充，增加蓬松感",
+      "result": "已补充2束真发，发量明显增加",
+      "createdAt": "2026-06-16T10:00:00.000Z",
+      "updatedAt": "2026-06-19T09:30:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T09:30:00.000Z",
+          "action": "待检查",
+          "note": "补发完成待检查"
+        },
+        {
+          "at": "2026-06-16T10:00:00.000Z",
+          "action": "创建",
+          "note": "补发任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-9",
+      "wigId": "wig-seed-3",
+      "type": "清洗",
+      "handler": "staff-seed-2",
+      "status": "维修中",
+      "dueDate": "2026-06-24",
+      "details": "定期深度清洗保养",
+      "result": "",
+      "createdAt": "2026-06-18T09:00:00.000Z",
+      "updatedAt": "2026-06-19T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T10:00:00.000Z",
+          "action": "维修中",
+          "note": "正在清洗中"
+        },
+        {
+          "at": "2026-06-18T09:00:00.000Z",
+          "action": "创建",
+          "note": "清洗任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-10",
+      "wigId": "wig-seed-1",
+      "type": "染色",
+      "handler": "staff-seed-5",
+      "status": "待处理",
+      "dueDate": "2026-07-05",
+      "details": "发根补色，保持银灰混蓝效果",
+      "result": "",
+      "createdAt": "2026-06-19T16:00:00.000Z",
+      "updatedAt": "2026-06-19T16:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T16:00:00.000Z",
+          "action": "创建",
+          "note": "染色任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-11",
+      "wigId": "wig-seed-2",
+      "type": "勾织",
+      "handler": "staff-seed-3",
+      "status": "待处理",
+      "dueDate": "2026-07-01",
+      "details": "刘海区域发丝加固",
+      "result": "",
+      "createdAt": "2026-06-19T17:00:00.000Z",
+      "updatedAt": "2026-06-19T17:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-19T17:00:00.000Z",
+          "action": "创建",
+          "note": "刘海加固任务创建"
         }
       ]
     }
@@ -150,6 +360,88 @@
           "at": "2026-06-19T17:08:20.474Z",
           "action": "创建",
           "note": "周末场次"
+        }
+      ]
+    }
+  ],
+  "staff": [
+    {
+      "id": "staff-seed-1",
+      "name": "林岚",
+      "specialty": "勾织、补发",
+      "contact": "138-0001-0001",
+      "note": "10年勾织经验，擅长手勾蕾丝前额",
+      "createdAt": "2026-06-01T08:00:00.000Z",
+      "updatedAt": "2026-06-18T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-01T08:00:00.000Z",
+          "action": "创建",
+          "note": "团队成员建档"
+        }
+      ]
+    },
+    {
+      "id": "staff-seed-2",
+      "name": "赵敏",
+      "specialty": "清洗、定型",
+      "contact": "139-0002-0002",
+      "note": "负责假发清洗保养与造型定型",
+      "createdAt": "2026-06-01T08:00:00.000Z",
+      "updatedAt": "2026-06-17T14:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-01T08:00:00.000Z",
+          "action": "创建",
+          "note": "团队成员建档"
+        }
+      ]
+    },
+    {
+      "id": "staff-seed-3",
+      "name": "陈思",
+      "specialty": "归还检查、勾织",
+      "contact": "137-0003-0003",
+      "note": "负责归还验收和基础勾织修补",
+      "createdAt": "2026-06-01T08:00:00.000Z",
+      "updatedAt": "2026-06-18T16:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-01T08:00:00.000Z",
+          "action": "创建",
+          "note": "团队成员建档"
+        }
+      ]
+    },
+    {
+      "id": "staff-seed-4",
+      "name": "王芳",
+      "specialty": "定型、造型设计",
+      "contact": "136-0004-0004",
+      "note": "5年舞台造型经验，擅长复杂古风造型",
+      "createdAt": "2026-06-02T08:00:00.000Z",
+      "updatedAt": "2026-06-15T09:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-02T08:00:00.000Z",
+          "action": "创建",
+          "note": "团队成员建档"
+        }
+      ]
+    },
+    {
+      "id": "staff-seed-5",
+      "name": "刘洋",
+      "specialty": "补发、染色",
+      "contact": "135-0005-0005",
+      "note": "专业补发技师，精通真发染色调配",
+      "createdAt": "2026-06-03T08:00:00.000Z",
+      "updatedAt": "2026-06-16T11:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-03T08:00:00.000Z",
+          "action": "创建",
+          "note": "团队成员建档"
         }
       ]
     }

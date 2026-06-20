@@ -1,6 +1,7 @@
 const state = {
   config: null,
   db: {},
+  staffStats: {},
   activeTab: ''
 };
 
@@ -159,14 +160,31 @@ function isBelowSafeStock(item) {
   return getStockStatus(item).level < 3;
 }
 
+function workloadTone(level) {
+  const tones = ['ok', 'ok', 'warn', 'warn', 'bad'];
+  return tones[Math.min(Math.max(level, 0), tones.length - 1)] || 'ok';
+}
+
 function renderCard(item, collection, view) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
-  const statusValue = item[view.statusField];
+  let statusValue = item[view.statusField];
+  let statusTone = '';
+  const staffStat = state.staffStats[item.id];
+  if (view.id === 'staff' && staffStat) {
+    statusValue = staffStat.workload;
+    statusTone = workloadTone(staffStat.workloadLevel);
+  } else {
+    statusTone = toneFor(statusValue);
+  }
   const stockInfo = view.stockField ? getStockStatus(item) : null;
   let cardClass = 'card';
   if (stockInfo && stockInfo.level === 0) cardClass = 'card stock-empty';
   else if (stockInfo && stockInfo.level === 1) cardClass = 'card low-stock';
   else if (stockInfo && stockInfo.level === 2) cardClass = 'card below-safe';
+  if (view.cardClass) cardClass += ' ' + view.cardClass;
+  if (view.id === 'staff' && staffStat) {
+    cardClass += ` workload-${staffStat.workloadLevel}`;
+  }
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
   const details = (view.detailFields || []).map((field) => {
     let value;
@@ -179,6 +197,14 @@ function renderCard(item, collection, view) {
       const info = getStockStatus(item);
       value = info.status;
       tone = info.tone;
+    } else if (field.type === 'staffStat') {
+      const personStats = state.staffStats[item.id] || {};
+      value = personStats[field.statKey] || 0;
+      tone = value > 0 ? 'warn' : 'ok';
+    } else if (field.type === 'staffWorkload') {
+      const personStats = state.staffStats[item.id] || {};
+      value = personStats.workload || '空闲';
+      tone = workloadTone(personStats.workloadLevel || 0);
     } else if (field.type === 'stock') {
       value = item[field.name];
       tone = stockInfo?.tone || '';
@@ -188,7 +214,8 @@ function renderCard(item, collection, view) {
       value = item[field.name];
     }
     if (tone) {
-      return `<div>${escapeHtml(field.label)}<br>${pill(value || '-', tone)}</div>`;
+      const displayValue = value === 0 ? '0' : (value || '-');
+      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
     }
     return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
   }).join('');
@@ -203,11 +230,11 @@ function renderCard(item, collection, view) {
     wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
   }
   return `<article class="${cardClass}">
-    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, toneFor(statusValue)) : (stockInfo ? pill(stockInfo.status, stockInfo.tone) : '')}</div>
+    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : (stockInfo ? pill(stockInfo.status, stockInfo.tone) : '')}</div>
     ${relation}
     ${wigStatusBadge}
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
-    ${details ? `<div class="detail">${details}</div>` : ''}
+    ${details ? `<div class="detail${view.detailClass ? ' ' + view.detailClass : ''}">${details}</div>` : ''}
     ${actions ? `<div class="actions">${actions}</div>` : ''}
     ${historyHtml(item)}
   </article>`;
@@ -219,13 +246,38 @@ function renderList(view) {
   const status = $(`#status-${view.id}`)?.value || '';
   let items = [...(state.db[collection] || [])];
   if (query) {
-    items = items.filter((item) => view.searchFields.some((field) => String(item[field] || '').includes(query)));
+    items = items.filter((item) => view.searchFields.some((field) => {
+      const value = String(item[field] || '');
+      if (value.includes(query)) return true;
+      const detailField = (view.detailFields || []).find((df) => df.name === field && df.type === 'relation');
+      if (detailField) {
+        const label = relationLabel(detailField, item[field]);
+        return label.includes(query);
+      }
+      return false;
+    }));
   }
   if (status) {
-    items = items.filter((item) => item[view.statusField] === status);
+    if (view.id === 'staff') {
+      items = items.filter((item) => {
+        const stat = state.staffStats[item.id];
+        return stat && stat.workload === status;
+      });
+    } else {
+      items = items.filter((item) => item[view.statusField] === status);
+    }
   }
   if (view.stockField) {
     items.sort((a, b) => getStockStatus(a).level - getStockStatus(b).level);
+  }
+  if (view.id === 'staff') {
+    items.sort((a, b) => {
+      const statA = state.staffStats[a.id];
+      const statB = state.staffStats[b.id];
+      const levelA = statA ? statA.workloadLevel : -1;
+      const levelB = statB ? statB.workloadLevel : -1;
+      return levelB - levelA;
+    });
   }
   return items.length ? items.map((item) => renderCard(item, collection, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
 }
@@ -275,7 +327,9 @@ function render() {
 }
 
 async function load() {
-  state.db = await api('/api/db');
+  const [db, staffStats] = await Promise.all([api('/api/db'), api('/api/staff-stats')]);
+  state.db = db;
+  state.staffStats = staffStats;
   render();
 }
 

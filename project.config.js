@@ -21,7 +21,8 @@ module.exports = {
     wigs: { label: '假发档案' },
     repairs: { label: '维修单' },
     schedules: { label: '演出排期' },
-    consumables: { label: '耗材台账' }
+    consumables: { label: '耗材台账' },
+    staff: { label: '服化团队' }
   },
   stats: [
     { label: '假发档案', collection: 'wigs' },
@@ -30,7 +31,11 @@ module.exports = {
     { label: '维修单', collection: 'repairs' },
     { label: '紧急维修', collection: 'wigs', filter: { field: 'status', value: '紧急维修' } },
     { label: '耗材种类', collection: 'consumables' },
-    { label: '库存告警', collection: 'consumables', dynamic: 'lowStock' }
+    { label: '库存告警', collection: 'consumables', dynamic: 'lowStock' },
+    { label: '团队成员', collection: 'staff' },
+    { label: '待处理维修', collection: 'repairs', filter: { field: 'status', value: '待处理' } },
+    { label: '维修中', collection: 'repairs', filter: { field: 'status', value: '维修中' } },
+    { label: '待检查', collection: 'repairs', filter: { field: 'status', value: '待检查' } }
   ],
   views: [
     {
@@ -110,10 +115,11 @@ module.exports = {
       searchFields: ['handler', 'type', 'details'],
       statusField: 'status',
       statusOptions: ['待处理', '维修中', '待检查', '已完成'],
-      titleFields: ['type', 'handler'],
+      titleFields: ['type'],
       relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },
       summaryFields: ['details', 'result'],
       detailFields: [
+        { label: '处理人', name: 'handler', type: 'relation', collection: 'staff', labelFields: ['name'] },
         { label: '截止日期', name: 'dueDate' },
         { label: '状态', name: 'status' },
         { label: '结果', name: 'result' }
@@ -121,11 +127,41 @@ module.exports = {
       fields: [
         { label: '假发', name: 'wigId', type: 'relation', collection: 'wigs', labelFields: ['role', 'show'], required: true, wide: true },
         { label: '类型', name: 'type', type: 'select', options: ['勾织', '补发', '清洗', '定型', '归还检查'] },
-        { label: '处理人', name: 'handler', required: true },
+        { label: '处理人', name: 'handler', type: 'relation', collection: 'staff', labelFields: ['name'], required: true },
         { label: '截止日期', name: 'dueDate', type: 'date', required: true },
         { label: '状态', name: 'status', type: 'select', options: ['待处理', '维修中', '待检查', '已完成'] },
         { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
         { label: '结果', name: 'result', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'staff',
+      label: '人员工作台',
+      collection: 'staff',
+      formTitle: '新增团队成员',
+      listTitle: '服化团队',
+      submitLabel: '保存成员',
+      searchPlaceholder: '搜索姓名、擅长工种',
+      searchFields: ['name', 'specialty'],
+      statusField: 'workloadStatus',
+      statusOptions: ['空闲', '轻松', '适中', '繁忙', '过载'],
+      titleFields: ['name', 'specialty'],
+      summaryFields: ['note'],
+      detailFields: [
+        { label: '联系方式', name: 'contact' },
+        { label: '工作负载', name: 'workload', type: 'staffWorkload' },
+        { label: '待处理', name: 'pendingCount', type: 'staffStat', statKey: 'pending' },
+        { label: '维修中', name: 'repairingCount', type: 'staffStat', statKey: 'repairing' },
+        { label: '待检查', name: 'checkingCount', type: 'staffStat', statKey: 'checking' },
+        { label: '在办总数', name: 'activeCount', type: 'staffStat', statKey: 'activeCount' }
+      ],
+      detailClass: 'staff-detail',
+      cardClass: 'staff-card',
+      fields: [
+        { label: '姓名', name: 'name', required: true },
+        { label: '擅长工种', name: 'specialty', required: true },
+        { label: '联系方式', name: 'contact', required: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     },
     {
