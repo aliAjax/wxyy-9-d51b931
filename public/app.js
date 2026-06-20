@@ -5,7 +5,8 @@ const state = {
   dispatchBoard: {},
   availabilityWarnings: { warnings: [], stats: {} },
   auditLogs: { data: [], total: 0, loading: false },
-  activeTab: ''
+  activeTab: '',
+  _warningsDebounceTimer: null
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -57,6 +58,57 @@ function displayField(item, field) {
 
 function collectionLabel(collection) {
   return state.config.collections[collection]?.label || collection;
+}
+
+function filterByDateRange(items, dateField, startDate, endDate) {
+  if (!startDate && !endDate) return items;
+  return items.filter((item) => {
+    const itemDate = new Date(item[dateField]);
+    itemDate.setHours(0, 0, 0, 0);
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      if (itemDate < start) return false;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (itemDate > end) return false;
+    }
+    return true;
+  });
+}
+
+function groupItemsByDate(items, dateField) {
+  const groups = {};
+  items.forEach((item) => {
+    const date = item[dateField] || '未知日期';
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(item);
+  });
+  const sortedDates = Object.keys(groups).sort((a, b) => new Date(a) - new Date(b));
+  return sortedDates.map((date) => ({ date, items: groups[date] }));
+}
+
+function formatDateLabel(dateStr) {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekday = weekdays[date.getDay()];
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  let label = `${month}月${day}日 ${weekday}`;
+  if (diffDays === 0) label += '（今天）';
+  else if (diffDays === 1) label += '（明天）';
+  else if (diffDays === -1) label += '（昨天）';
+  else if (diffDays > 0 && diffDays <= 7) label += `（还有${diffDays}天）`;
+  else if (diffDays < 0 && diffDays >= -7) label += `（已过${Math.abs(diffDays)}天）`;
+  return label;
 }
 
 function relationLabel(relation, id) {
@@ -328,7 +380,10 @@ function renderList(view) {
   const collection = view.collection;
   const query = $(`#search-${view.id}`)?.value.trim() || '';
   const status = $(`#status-${view.id}`)?.value || '';
+  const dateStart = view.dateRangeFilter ? $(`#date-start-${view.id}`)?.value || '' : '';
+  const dateEnd = view.dateRangeFilter ? $(`#date-end-${view.id}`)?.value || '' : '';
   let items = [...(state.db[collection] || [])];
+
   if (query) {
     items = items.filter((item) => view.searchFields.some((field) => {
       const value = String(item[field] || '');
@@ -351,6 +406,9 @@ function renderList(view) {
       items = items.filter((item) => item[view.statusField] === status);
     }
   }
+  if (view.dateRangeFilter && view.dateField && (dateStart || dateEnd)) {
+    items = filterByDateRange(items, view.dateField, dateStart, dateEnd);
+  }
   if (view.stockField) {
     items.sort((a, b) => getStockStatus(a).level - getStockStatus(b).level);
   }
@@ -363,7 +421,33 @@ function renderList(view) {
       return levelB - levelA;
     });
   }
-  return items.length ? items.map((item) => renderCard(item, collection, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
+
+  if (view.groupByDate && view.dateField && items.length > 0) {
+    const groups = groupItemsByDate(items, view.dateField);
+    const hasDateFilter = dateStart || dateEnd;
+    const emptyHint = hasDateFilter
+      ? `<div class="empty">该日期范围内暂无${escapeHtml(collectionLabel(collection))}</div>`
+      : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
+    return groups.length
+      ? groups.map((group) => `
+          <div class="date-group">
+            <div class="date-group-header">
+              <span class="date-group-title">${escapeHtml(formatDateLabel(group.date))}</span>
+              <span class="date-group-count">${group.items.length} 场</span>
+            </div>
+            <div class="date-group-items">
+              ${group.items.map((item) => renderCard(item, collection, view)).join('')}
+            </div>
+          </div>
+        `).join('')
+      : emptyHint;
+  }
+
+  const hasDateFilter = dateStart || dateEnd;
+  const emptyHint = hasDateFilter
+    ? `<div class="empty">该日期范围内暂无${escapeHtml(collectionLabel(collection))}</div>`
+    : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
+  return items.length ? items.map((item) => renderCard(item, collection, view)).join('') : emptyHint;
 }
 
 function renderDashboardView(view) {
@@ -480,13 +564,9 @@ function renderPreChecklistCard(item, view) {
 function renderPreChecklistList(view) {
   const query = $(`#search-${view.id}`)?.value.trim() || '';
   const status = $(`#status-${view.id}`)?.value || '';
+  const dateStart = view.dateRangeFilter ? $(`#date-start-${view.id}`)?.value || '' : '';
+  const dateEnd = view.dateRangeFilter ? $(`#date-end-${view.id}`)?.value || '' : '';
   let items = [...(state.db[view.collection] || [])];
-
-  items.sort((a, b) => {
-    const dateA = new Date(a.performanceDate || 0);
-    const dateB = new Date(b.performanceDate || 0);
-    return dateA - dateB;
-  });
 
   if (query) {
     items = items.filter((item) => view.searchFields.some((field) => {
@@ -497,19 +577,77 @@ function renderPreChecklistList(view) {
   if (status) {
     items = items.filter((item) => item[view.statusField] === status);
   }
-  return items.length ? items.map((item) => renderPreChecklistCard(item, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+  if (view.dateRangeFilter && view.dateField && (dateStart || dateEnd)) {
+    items = filterByDateRange(items, view.dateField, dateStart, dateEnd);
+  }
+
+  items.sort((a, b) => {
+    const dateA = new Date(a.performanceDate || 0);
+    const dateB = new Date(b.performanceDate || 0);
+    return dateA - dateB;
+  });
+
+  if (view.groupByDate && view.dateField && items.length > 0) {
+    const groups = groupItemsByDate(items, view.dateField);
+    const hasDateFilter = dateStart || dateEnd;
+    const emptyHint = hasDateFilter
+      ? `<div class="empty">该日期范围内暂无${escapeHtml(collectionLabel(view.collection))}</div>`
+      : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+    return groups.length
+      ? groups.map((group) => `
+          <div class="date-group">
+            <div class="date-group-header">
+              <span class="date-group-title">${escapeHtml(formatDateLabel(group.date))}</span>
+              <span class="date-group-count">${group.items.length} 项</span>
+            </div>
+            <div class="date-group-items">
+              ${group.items.map((item) => renderPreChecklistCard(item, view)).join('')}
+            </div>
+          </div>
+        `).join('')
+      : emptyHint;
+  }
+
+  const hasDateFilter = dateStart || dateEnd;
+  const emptyHint = hasDateFilter
+    ? `<div class="empty">该日期范围内暂无${escapeHtml(collectionLabel(view.collection))}</div>`
+    : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+  return items.length ? items.map((item) => renderPreChecklistCard(item, view)).join('') : emptyHint;
 }
 
 function renderPreChecklistView(view) {
   const statusOptions = view.statusOptions || [];
+  const dateRangeFilter = view.dateRangeFilter ? `
+    <div class="date-range-filter">
+      <label class="date-range-label">
+        <span>开始日期</span>
+        <input type="date" id="date-start-${view.id}" class="date-filter-input">
+      </label>
+      <label class="date-range-label">
+        <span>结束日期</span>
+        <input type="date" id="date-end-${view.id}" class="date-filter-input">
+      </label>
+      <button class="ghost date-reset-btn" id="date-reset-${view.id}" type="button">重置日期</button>
+    </div>
+  ` : '';
   return `<section class="view" id="${view.id}">
     <div class="grid">
       <div class="panel">
         <h2>${escapeHtml(view.formTitle)}</h2>
         <div class="generate-section">
-          <label>按演出日期生成
-            <input type="date" id="generate-date-${view.id}">
-          </label>
+          <div class="generate-date-range">
+            <label>开始日期
+              <input type="date" id="generate-date-start-${view.id}">
+            </label>
+            <label>结束日期
+              <input type="date" id="generate-date-end-${view.id}">
+            </label>
+          </div>
+          <div class="generate-single-date" style="display:none;">
+            <label>按演出日期生成
+              <input type="date" id="generate-date-${view.id}">
+            </label>
+          </div>
           <div class="actions">
             <button id="generate-btn-${view.id}">从排期生成检查任务</button>
           </div>
@@ -530,6 +668,7 @@ function renderPreChecklistView(view) {
             ${statusOptions.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}
           </select>
         </div>
+        ${dateRangeFilter}
         <div class="list" id="list-${view.id}">${renderPreChecklistList(view)}</div>
       </div>
     </div>
@@ -538,6 +677,19 @@ function renderPreChecklistView(view) {
 
 function renderCrudView(view) {
   const statusOptions = view.statusOptions || [];
+  const dateRangeFilter = view.dateRangeFilter ? `
+    <div class="date-range-filter">
+      <label class="date-range-label">
+        <span>开始日期</span>
+        <input type="date" id="date-start-${view.id}" class="date-filter-input">
+      </label>
+      <label class="date-range-label">
+        <span>结束日期</span>
+        <input type="date" id="date-end-${view.id}" class="date-filter-input">
+      </label>
+      <button class="ghost date-reset-btn" id="date-reset-${view.id}" type="button">重置日期</button>
+    </div>
+  ` : '';
   return `<section class="view" id="${view.id}">
     <div class="grid">
       <form class="panel" data-create="${view.collection}" data-view="${view.id}">
@@ -554,6 +706,7 @@ function renderCrudView(view) {
             ${statusOptions.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}
           </select>
         </div>
+        ${dateRangeFilter}
         <div class="list" id="list-${view.id}">${renderList(view)}</div>
       </div>
     </div>
@@ -1295,6 +1448,9 @@ function renderWarningCard(item) {
 function renderAvailabilityWarningsView(view) {
   const { warnings = [], stats = {} } = state.availabilityWarnings;
   const byType = stats.byType || {};
+  const dateFilterInfo = stats.hasDateFilter
+    ? `<span class="pill accent">日期筛选中 · 共 ${stats.totalPerformances || 0} 场演出</span>`
+    : '';
 
   return `<section class="view" id="${view.id}">
     <div class="availability-header">
@@ -1303,8 +1459,22 @@ function renderAvailabilityWarningsView(view) {
         <button class="ghost" id="warnings-refresh">刷新预警</button>
       </div>
     </div>
+    <div class="availability-date-filter">
+      <div class="date-range-filter warnings-date-filter">
+        <label class="date-range-label">
+          <span>开始日期</span>
+          <input type="date" id="warnings-date-start" class="date-filter-input">
+        </label>
+        <label class="date-range-label">
+          <span>结束日期</span>
+          <input type="date" id="warnings-date-end" class="date-filter-input">
+        </label>
+        <button class="ghost date-reset-btn" id="warnings-date-reset" type="button">重置日期</button>
+      </div>
+      ${dateFilterInfo}
+    </div>
     <div class="availability-stats">
-      <div class="stat"><span>未来14天演出</span><strong>${stats.upcomingPerformances || 0}</strong></div>
+      <div class="stat"><span>${stats.hasDateFilter ? '筛选范围内演出' : '未来14天演出'}</span><strong>${stats.hasDateFilter ? (stats.totalPerformances || 0) : (stats.upcomingPerformances || 0)}</strong></div>
       <div class="stat warning-stat-high"><span>高风险</span><strong>${stats.high || 0}</strong></div>
       <div class="stat warning-stat-medium"><span>中风险</span><strong>${stats.medium || 0}</strong></div>
       <div class="stat"><span>预警总数</span><strong>${stats.total || 0}</strong></div>
@@ -1371,12 +1541,24 @@ function render() {
   setTab(state.activeTab || state.config.views[0].id);
 }
 
+async function loadAvailabilityWarnings(startDate, endDate) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const result = await api(`/api/availability-warnings${query}`);
+  state.availabilityWarnings = result;
+  return result;
+}
+
 async function load() {
+  const warningsStart = $('#warnings-date-start')?.value || '';
+  const warningsEnd = $('#warnings-date-end')?.value || '';
   const [db, staffStats, dispatchBoard, availabilityWarnings] = await Promise.all([
     api('/api/db'),
     api('/api/staff-stats'),
     api('/api/dispatch-board'),
-    api('/api/availability-warnings')
+    loadAvailabilityWarnings(warningsStart, warningsEnd)
   ]);
   state.db = db;
   state.staffStats = staffStats;
@@ -1585,22 +1767,89 @@ document.addEventListener('click', async (event) => {
   }
   if (generateBtn) {
     const viewId = generateBtn.id.replace('generate-btn-', '');
+    const dateStartInput = document.getElementById(`generate-date-start-${viewId}`);
+    const dateEndInput = document.getElementById(`generate-date-end-${viewId}`);
     const dateInput = document.getElementById(`generate-date-${viewId}`);
-    const performanceDate = dateInput?.value;
-    if (!performanceDate) {
-      toast('请选择演出日期');
-      return;
+
+    let startDate = dateStartInput?.value || '';
+    let endDate = dateEndInput?.value || '';
+    let singleDate = dateInput?.value || '';
+
+    if (startDate || endDate) {
+      if (!startDate || !endDate) {
+        toast('请选择完整的日期区间（开始日期和结束日期）');
+        return;
+      }
+      if (new Date(startDate) > new Date(endDate)) {
+        toast('开始日期不能晚于结束日期');
+        return;
+      }
+      try {
+        const result = await api('/api/pre-checklists/generate-range', {
+          method: 'POST',
+          body: JSON.stringify({ startDate, endDate })
+        });
+        await load();
+        toast(`已生成 ${result.created} 个检查任务（共 ${result.total} 条排期，涉及 ${result.dateCount} 天）`);
+      } catch (error) {
+        toast(error.message);
+      }
+    } else if (singleDate) {
+      try {
+        const result = await api('/api/pre-checklists/generate', {
+          method: 'POST',
+          body: JSON.stringify({ performanceDate: singleDate })
+        });
+        await load();
+        toast(`已生成 ${result.created} 个检查任务（共 ${result.total} 条排期）`);
+      } catch (error) {
+        toast(error.message);
+      }
+    } else {
+      toast('请选择演出日期或日期区间');
     }
-    try {
-      const result = await api('/api/pre-checklists/generate', {
-        method: 'POST',
-        body: JSON.stringify({ performanceDate })
-      });
-      await load();
-      toast(`已生成 ${result.created} 个检查任务（共 ${result.total} 条排期）`);
-    } catch (error) {
-      toast(error.message);
+  }
+
+  const dateResetBtn = event.target.closest('[id^="date-reset-"]');
+  if (dateResetBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const viewId = dateResetBtn.id.replace('date-reset-', '');
+    const startInput = $(`#date-start-${viewId}`);
+    const endInput = $(`#date-end-${viewId}`);
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    const view = state.config.views.find((entry) => entry.id === viewId);
+    if (view) {
+      if (view.type === 'preChecklist') {
+        $(`#list-${view.id}`).innerHTML = renderPreChecklistList(view);
+      } else if (view.type === 'lending') {
+        $(`#list-${view.id}`).innerHTML = renderLendingList(view);
+      } else if (view.type === 'repairReview') {
+        $(`#list-${view.id}`).innerHTML = renderRepairReviewList(view);
+      } else {
+        $(`#list-${view.id}`).innerHTML = renderList(view);
+      }
     }
+  }
+
+  const warningsDateResetBtn = event.target.closest('#warnings-date-reset');
+  if (warningsDateResetBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startInput = $('#warnings-date-start');
+    const endInput = $('#warnings-date-end');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    if (state._warningsDebounceTimer) {
+      clearTimeout(state._warningsDebounceTimer);
+    }
+    loadAvailabilityWarnings('', '').then(() => {
+      render();
+      setTab(state.activeTab);
+    }).catch((error) => {
+      toast(error.message || '重置日期失败');
+    });
   }
 
   const reassignBtn = event.target.closest('[data-reassign]');
@@ -1906,7 +2155,12 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('input', (event) => {
-  const view = state.config.views.find((entry) => entry.id && (event.target.id === `search-${entry.id}` || event.target.id === `status-${entry.id}`));
+  const view = state.config.views.find((entry) => entry.id && (
+    event.target.id === `search-${entry.id}` ||
+    event.target.id === `status-${entry.id}` ||
+    event.target.id === `date-start-${entry.id}` ||
+    event.target.id === `date-end-${entry.id}`
+  ));
   if (view) {
     if (view.type === 'preChecklist') {
       $(`#list-${view.id}`).innerHTML = renderPreChecklistList(view);
@@ -1931,6 +2185,38 @@ document.addEventListener('input', (event) => {
         ? warnings.map(renderWarningCard).join('')
         : '<div class="empty">没有符合筛选条件的预警</div>';
     }
+  }
+
+  if (event.target.id === 'warnings-date-start' || event.target.id === 'warnings-date-end') {
+    if (state._warningsDebounceTimer) {
+      clearTimeout(state._warningsDebounceTimer);
+    }
+    state._warningsDebounceTimer = setTimeout(async () => {
+      const startDate = $('#warnings-date-start')?.value || '';
+      const endDate = $('#warnings-date-end')?.value || '';
+      try {
+        await loadAvailabilityWarnings(startDate, endDate);
+        const warningsView = state.config.views.find((v) => v.type === 'availabilityWarnings');
+        if (warningsView && state.activeTab === warningsView.id) {
+          const listEl = $('#warnings-list');
+          const statsEl = $('.availability-stats');
+          const typeStatsEl = $('.availability-type-stats');
+          const dateFilterInfoEl = $('.availability-date-filter');
+          if (listEl && statsEl && typeStatsEl) {
+            const warnings = state.availabilityWarnings.warnings || [];
+            const stats = state.availabilityWarnings.stats || {};
+            const byType = stats.byType || {};
+            listEl.innerHTML = warnings.length
+              ? warnings.map(renderWarningCard).join('')
+              : '<div class="empty">太棒了！当前范围内没有可用性风险 🎉</div>';
+          }
+          render();
+          setTab(state.activeTab);
+        }
+      } catch (error) {
+        toast(error.message || '加载预警数据失败');
+      }
+    }, 500);
   }
 });
 

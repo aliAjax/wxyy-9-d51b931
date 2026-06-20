@@ -934,6 +934,100 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
   res.json({ created: createdCount, total: schedules.length });
 });
 
+app.post('/api/pre-checklists/generate-range', async (req, res) => {
+  const db = await readDb();
+  const { startDate, endDate } = req.body;
+  if (!startDate || !endDate) return res.status(400).json({ error: '请提供开始日期和结束日期' });
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (start > end) return res.status(400).json({ error: '开始日期不能晚于结束日期' });
+
+  const allSchedules = (db.schedules || []).filter((s) => {
+    const perfDate = new Date(s.performanceDate);
+    perfDate.setHours(0, 0, 0, 0);
+    const startDay = new Date(startDate);
+    startDay.setHours(0, 0, 0, 0);
+    const endDay = new Date(endDate);
+    endDay.setHours(23, 59, 59, 999);
+    return perfDate >= startDay && perfDate <= endDay;
+  });
+
+  if (!allSchedules.length) return res.status(404).json({ error: '该日期范围内暂无演出排期' });
+
+  const dateSet = new Set(allSchedules.map((s) => s.performanceDate));
+
+  const existingChecklists = (db.preChecklists || []).filter((c) => {
+    const perfDate = new Date(c.performanceDate);
+    perfDate.setHours(0, 0, 0, 0);
+    const startDay = new Date(startDate);
+    startDay.setHours(0, 0, 0, 0);
+    const endDay = new Date(endDate);
+    endDay.setHours(23, 59, 59, 999);
+    return perfDate >= startDay && perfDate <= endDay;
+  });
+  const existingKeySet = new Set(existingChecklists.map((c) => `${c.performanceDate}-${c.wigId}`));
+
+  const checkItemsTemplate = (config.checkItems || []).map((name) => ({
+    name,
+    result: '',
+    note: ''
+  }));
+
+  const now = new Date().toISOString();
+  let createdCount = 0;
+
+  for (const schedule of allSchedules) {
+    const key = `${schedule.performanceDate}-${schedule.wigId}`;
+    if (existingKeySet.has(key)) continue;
+
+    const wig = (db.wigs || []).find((w) => w.id === schedule.wigId);
+    const wigBefore = wig ? deepClone(wig) : null;
+
+    const checklist = {
+      id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+      performanceDate: schedule.performanceDate,
+      show: schedule.show,
+      role: schedule.role,
+      wigId: schedule.wigId,
+      status: '待检查',
+      checkItems: JSON.parse(JSON.stringify(checkItemsTemplate)),
+      findings: '',
+      suggestions: '',
+      checker: '',
+      checkedAt: '',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}`)]
+    };
+
+    db.preChecklists = db.preChecklists || [];
+    db.preChecklists.push(checklist);
+    createdCount++;
+    existingKeySet.add(key);
+
+    const relatedChanges = [];
+    if (wig) {
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('演出前检查生成', `${schedule.performanceDate} 演出检查任务已生成`));
+      wig.updatedAt = now;
+      if (wigBefore) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+    }
+
+    createAuditLog(db, 'create', 'preChecklists', checklist.id, null, checklist, { relatedChanges });
+  }
+
+  await writeDb(db);
+  res.json({ created: createdCount, total: allSchedules.length, dateCount: dateSet.size });
+});
+
 app.patch('/api/pre-checklists/:id/check', async (req, res) => {
   const db = await readDb();
   const { id } = req.params;
@@ -1176,12 +1270,32 @@ app.post('/api/wigs/batch-import', async (req, res) => {
 
 app.get('/api/availability-warnings', async (req, res) => {
   const db = await readDb();
-  const schedules = db.schedules || [];
+  let schedules = db.schedules || [];
   const wigs = db.wigs || [];
   const repairs = db.repairs || [];
   const lendings = db.lendings || [];
   const preChecklists = db.preChecklists || [];
   const staff = db.staff || [];
+
+  const { startDate, endDate } = req.query;
+  let dateFilteredSchedules = schedules;
+  if (startDate || endDate) {
+    dateFilteredSchedules = schedules.filter((s) => {
+      const perfDate = new Date(s.performanceDate);
+      perfDate.setHours(0, 0, 0, 0);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (perfDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (perfDate > end) return false;
+      }
+      return true;
+    });
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1191,12 +1305,12 @@ app.get('/api/availability-warnings', async (req, res) => {
     `${prefix}-${scheduleId || 'none'}-${wigId || 'none'}`;
 
   const wigScheduleMap = new Map();
-  for (const s of schedules) {
+  for (const s of dateFilteredSchedules) {
     if (!wigScheduleMap.has(s.wigId)) wigScheduleMap.set(s.wigId, []);
     wigScheduleMap.get(s.wigId).push(s);
   }
 
-  for (const schedule of schedules) {
+  for (const schedule of dateFilteredSchedules) {
     const perfDate = new Date(schedule.performanceDate);
     perfDate.setHours(0, 0, 0, 0);
     const daysUntil = Math.ceil((perfDate - today) / (1000 * 60 * 60 * 24));
@@ -1411,12 +1525,14 @@ app.get('/api/availability-warnings', async (req, res) => {
       returnCheckFail: warnings.filter((w) => w.riskType === 'returnCheckFail').length,
       preCheckPending: warnings.filter((w) => w.riskType === 'preCheckPending').length
     },
-    upcomingPerformances: schedules.filter((s) => {
+    upcomingPerformances: dateFilteredSchedules.filter((s) => {
       const d = new Date(s.performanceDate);
       d.setHours(0, 0, 0, 0);
       const diff = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
       return diff >= 0 && diff <= 14;
-    }).length
+    }).length,
+    totalPerformances: dateFilteredSchedules.length,
+    hasDateFilter: !!(startDate || endDate)
   };
 
   res.json({ warnings, stats });

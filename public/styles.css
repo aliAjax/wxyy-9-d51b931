@@ -212,6 +212,98 @@ main {
   margin-bottom: 12px;
 }
 
+.date-range-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(17, 97, 92, .04), rgba(163, 92, 0, .03));
+  border: 1px solid rgba(216, 208, 194, .5);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.date-range-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  flex: 1;
+  min-width: 140px;
+}
+
+.date-range-label span {
+  font-size: 12px;
+}
+
+.date-filter-input {
+  padding: 8px 10px;
+}
+
+.date-reset-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+.date-group {
+  margin-bottom: 18px;
+}
+
+.date-group:last-child {
+  margin-bottom: 0;
+}
+
+.date-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(17, 97, 92, .08), rgba(17, 97, 92, .04));
+  border: 1px solid rgba(17, 97, 92, .2);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.date-group-title {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.date-group-count {
+  font-size: 12px;
+  color: var(--muted);
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+}
+
+.date-group-items {
+  display: grid;
+  gap: 10px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(17, 97, 92, .15);
+  margin-left: 12px;
+}
+
+.generate-date-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.generate-date-range label {
+  margin-bottom: 0;
+}
+
 .list {
   display: grid;
   gap: 12px;
@@ -901,6 +993,24 @@ main {
     flex: 1;
     min-width: 0;
   }
+
+  .date-range-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-reset-btn {
+    align-self: stretch;
+  }
+
+  .date-group-items {
+    padding-left: 4px;
+    margin-left: 6px;
+  }
+
+  .generate-date-range {
+    grid-template-columns: 1fr;
+  }
 }
 
 .import-hint {
@@ -1287,6 +1397,19 @@ td.import-col-num {
   color: var(--ink);
 }
 
+.availability-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.warnings-date-filter {
+  flex: 1;
+  min-width: 0;
+}
+
 .availability-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1489,6 +1612,25 @@ td.import-col-num {
   .availability-filters select {
     flex: 1;
     min-width: 0;
+  }
+
+  .availability-date-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .warnings-date-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .warnings-date-filter .date-range-label {
+    width: 100%;
+  }
+
+  .warnings-date-filter .date-reset-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .warning-schedule-info {
