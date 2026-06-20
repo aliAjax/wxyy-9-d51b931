@@ -980,10 +980,12 @@ app.get('/api/availability-warnings', async (req, res) => {
   }
 
   warnings.sort((a, b) => {
+    const dateDiff = new Date(a.performanceDate) - new Date(b.performanceDate);
+    if (dateDiff !== 0) return dateDiff;
     const levelRank = { high: 0, medium: 1, low: 2 };
     const rankDiff = levelRank[a.riskLevel] - levelRank[b.riskLevel];
     if (rankDiff !== 0) return rankDiff;
-    return new Date(a.performanceDate) - new Date(b.performanceDate);
+    return a.riskType.localeCompare(b.riskType);
   });
 
   const stats = {
@@ -1036,15 +1038,20 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       db.repairs = db.repairs || [];
       db.repairs.push(item);
 
-      if (wig.status !== '需要维修' && wig.status !== '紧急维修') {
+      const lendingBlocked = ['借出中', '归还待检查'].includes(wig.status);
+      if (!lendingBlocked && wig.status !== '需要维修' && wig.status !== '紧急维修') {
         wig.status = '需要维修';
         wig.updatedAt = now;
         wig.history = wig.history || [];
         wig.history.unshift(stamp('需要维修', '预警自动标记为需要维修'));
       }
 
+      const message = lendingBlocked
+        ? '已创建维修单（假发处于借出/归还检查流程，状态将在归还后更新）'
+        : '已创建维修单';
+
       await writeDb(db);
-      return res.json({ success: true, item, message: '已创建维修单' });
+      return res.json({ success: true, item, message });
     }
 
     if (actionType === 'mark-return' && lendingId) {
