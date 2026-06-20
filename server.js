@@ -174,21 +174,31 @@ function hasDependencies(db, auditLog) {
 function undoAuditLog(db, auditLog) {
   const { operationType, collection, targetId, before, after, relatedChanges = [] } = auditLog;
 
-  const allChanges = [{ collection, targetId, before, after }, ...relatedChanges];
+  const mainChange = { collection, targetId, before, after, _isMain: true, _mainOpType: operationType };
+  const allChanges = [mainChange, ...relatedChanges];
 
   for (const change of allChanges) {
-    const { collection: col, targetId: tid, before: bf, after: af } = change;
+    const { collection: col, targetId: tid, before: bf, after: af, _isMain, _mainOpType } = change;
 
     if (!AUDIT_COLLECTIONS.includes(col)) continue;
     if (!Array.isArray(db[col])) continue;
 
     const idx = db[col].findIndex(item => item.id === tid);
 
-    if (operationType === 'create') {
+    let changeType;
+    if (_isMain) {
+      changeType = _mainOpType;
+    } else {
+      if (bf === null || bf === undefined) changeType = 'create';
+      else if (af === null || af === undefined) changeType = 'delete';
+      else changeType = 'update';
+    }
+
+    if (changeType === 'create') {
       if (idx !== -1) {
         db[col].splice(idx, 1);
       }
-    } else if (operationType === 'delete') {
+    } else if (changeType === 'delete') {
       if (idx === -1 && bf) {
         db[col].push(deepClone(bf));
       }
