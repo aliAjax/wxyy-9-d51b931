@@ -294,6 +294,167 @@ function renderDashboardView(view) {
   </section>`;
 }
 
+function renderCheckItems(checkItems) {
+  if (!checkItems || !checkItems.length) return '';
+  const passCount = checkItems.filter((item) => item.result === '通过').length;
+  const failCount = checkItems.filter((item) => item.result === '不通过').length;
+  const total = checkItems.length;
+  return `
+    <div class="check-items-summary">
+      <span class="check-summary-text">检查项：${passCount}/${total} 通过</span>
+      ${failCount > 0 ? `<span class="pill bad">${failCount} 项不通过</span>` : ''}
+    </div>
+    <div class="check-items-list">
+      ${checkItems.map((item, idx) => `
+        <div class="check-item">
+          <span class="check-item-name">${escapeHtml(item.name)}</span>
+          <span class="pill ${item.result === '通过' ? 'ok' : item.result === '不通过' ? 'bad' : ''}">${escapeHtml(item.result || '未检查')}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderPreChecklistCard(item, view) {
+  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+  let statusValue = item[view.statusField];
+  let statusTone = toneFor(statusValue);
+  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
+  const details = (view.detailFields || []).map((field) => {
+    let value;
+    let tone = '';
+    if (field.type === 'dynamic' && field.name === 'wigStatus') {
+      const wigInfo = getWigStatus(item.wigId);
+      value = wigInfo.status;
+      tone = wigInfo.tone;
+    } else if (field.type === 'relation') {
+      value = relationLabel(field, item[field.name]);
+    } else {
+      value = item[field.name];
+    }
+    if (tone) {
+      const displayValue = value || '-';
+      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
+    }
+    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+  }).join('');
+
+  const checkItemsHtml = renderCheckItems(item.checkItems);
+
+  const actions = state.config.actions
+    .filter((action) => action.collection === view.collection)
+    .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
+    .join('');
+
+  let wigStatusBadge = '';
+  if (view.showWigStatus && item.wigId) {
+    const wigInfo = getWigStatus(item.wigId);
+    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+  }
+
+  const findingsHtml = item.findings ? `<div class="findings"><strong>发现问题：</strong>${escapeHtml(item.findings)}</div>` : '';
+  const suggestionsHtml = item.suggestions ? `<div class="suggestions"><strong>处理建议：</strong>${escapeHtml(item.suggestions)}</div>` : '';
+
+  return `<article class="card check-card">
+    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : ''}</div>
+    ${relation}
+    ${wigStatusBadge}
+    ${checkItemsHtml}
+    ${findingsHtml}
+    ${suggestionsHtml}
+    ${details ? `<div class="detail">${details}</div>` : ''}
+    <div class="inline-actions">
+      <button class="ghost" data-check-edit="${item.id}">${item.status === '待检查' ? '开始检查' : '查看/编辑'}</button>
+    </div>
+    ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${historyHtml(item)}
+    <div class="check-form-panel" id="check-form-${item.id}" style="display:none;">
+      <h4>检查记录</h4>
+      <div class="check-form-items">
+        ${(item.checkItems || state.config.checkItems || []).map((ci, idx) => `
+          <div class="check-form-item">
+            <label class="check-item-label">${escapeHtml(ci.name || ci)}</label>
+            <select data-check-idx="${idx}" data-check-field="result">
+              <option value="">未检查</option>
+              <option value="通过" ${ci.result === '通过' ? 'selected' : ''}>通过</option>
+              <option value="不通过" ${ci.result === '不通过' ? 'selected' : ''}>不通过</option>
+            </select>
+            <input type="text" data-check-idx="${idx}" data-check-field="note" placeholder="备注" value="${escapeHtml(ci.note || '')}">
+          </div>
+        `).join('')}
+      </div>
+      <label>发现问题<textarea name="findings" data-check-text="findings">${escapeHtml(item.findings || '')}</textarea></label>
+      <label>处理建议<textarea name="suggestions" data-check-text="suggestions">${escapeHtml(item.suggestions || '')}</textarea></label>
+      <label>检查人<input type="text" name="checker" data-check-text="checker" value="${escapeHtml(item.checker || '')}"></label>
+      <div class="actions">
+        <button class="secondary" data-check-cancel="${item.id}">取消</button>
+        <button class="ghost" data-check-submit="待检查" data-check-id="${item.id}">保存草稿</button>
+        <button class="ghost" data-check-submit="检查通过" data-check-id="${item.id}">标记通过</button>
+        <button class="danger" data-check-submit="检查不通过" data-check-id="${item.id}">标记不通过</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderPreChecklistList(view) {
+  const query = $(`#search-${view.id}`)?.value.trim() || '';
+  const status = $(`#status-${view.id}`)?.value || '';
+  let items = [...(state.db[view.collection] || [])];
+
+  items.sort((a, b) => {
+    const dateA = new Date(a.performanceDate || 0);
+    const dateB = new Date(b.performanceDate || 0);
+    return dateA - dateB;
+  });
+
+  if (query) {
+    items = items.filter((item) => view.searchFields.some((field) => {
+      const value = String(item[field] || '');
+      return value.includes(query);
+    }));
+  }
+  if (status) {
+    items = items.filter((item) => item[view.statusField] === status);
+  }
+  return items.length ? items.map((item) => renderPreChecklistCard(item, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+}
+
+function renderPreChecklistView(view) {
+  const statusOptions = view.statusOptions || [];
+  return `<section class="view" id="${view.id}">
+    <div class="grid">
+      <div class="panel">
+        <h2>${escapeHtml(view.formTitle)}</h2>
+        <div class="generate-section">
+          <label>按演出日期生成
+            <input type="date" id="generate-date-${view.id}">
+          </label>
+          <div class="actions">
+            <button id="generate-btn-${view.id}">从排期生成检查任务</button>
+          </div>
+        </div>
+        <hr style="margin: 16px 0; border: 0; border-top: 1px solid var(--line);">
+        <form class="single-create-form" data-create="${view.collection}" data-view="${view.id}">
+          <h3>手动创建检查任务</h3>
+          <div class="form-grid">${view.fields.map(formField).join('')}</div>
+          <div class="actions"><button>${escapeHtml(view.submitLabel || '保存')}</button></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>${escapeHtml(view.listTitle)}</h2>
+        <div class="toolbar">
+          <input id="search-${view.id}" placeholder="${escapeHtml(view.searchPlaceholder || '搜索')}">
+          <select id="status-${view.id}">
+            <option value="">全部状态</option>
+            ${statusOptions.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="list" id="list-${view.id}">${renderPreChecklistList(view)}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function renderCrudView(view) {
   const statusOptions = view.statusOptions || [];
   return `<section class="view" id="${view.id}">
@@ -322,7 +483,11 @@ function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
-  $('#main').innerHTML = state.config.views.map((view) => view.type === 'dashboard' ? renderDashboardView(view) : renderCrudView(view)).join('');
+  $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'dashboard') return renderDashboardView(view);
+    if (view.type === 'preChecklist') return renderPreChecklistView(view);
+    return renderCrudView(view);
+  }).join('');
   setTab(state.activeTab || state.config.views[0].id);
 }
 
@@ -336,6 +501,11 @@ async function load() {
 document.addEventListener('click', async (event) => {
   const tab = event.target.closest('.tab');
   const action = event.target.closest('[data-action]');
+  const checkEdit = event.target.closest('[data-check-edit]');
+  const checkCancel = event.target.closest('[data-check-cancel]');
+  const checkSubmit = event.target.closest('[data-check-submit]');
+  const generateBtn = event.target.closest('[id^="generate-btn-"]');
+
   if (tab) setTab(tab.dataset.tab);
   if (action) {
     try {
@@ -346,11 +516,90 @@ document.addEventListener('click', async (event) => {
       toast(error.message);
     }
   }
+  if (checkEdit) {
+    const id = checkEdit.dataset.checkEdit;
+    const panel = document.getElementById(`check-form-${id}`);
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+  if (checkCancel) {
+    const id = checkCancel.dataset.checkCancel;
+    const panel = document.getElementById(`check-form-${id}`);
+    if (panel) panel.style.display = 'none';
+  }
+  if (checkSubmit) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = checkSubmit.dataset.checkId;
+    const status = checkSubmit.dataset.checkSubmit;
+    const card = checkSubmit.closest('.check-card');
+    if (!card) return;
+
+    const checkItems = [];
+    const itemEls = card.querySelectorAll('[data-check-idx]');
+    const itemMap = new Map();
+    itemEls.forEach((el) => {
+      const idx = el.dataset.checkIdx;
+      const field = el.dataset.checkField;
+      if (!itemMap.has(idx)) itemMap.set(idx, {});
+      itemMap.get(idx)[field] = el.value;
+    });
+    itemMap.forEach((val, idx) => {
+      const labelEl = card.querySelector(`[data-check-idx="${idx}"][data-check-field="result"]`);
+      const nameEl = labelEl?.closest('.check-form-item')?.querySelector('.check-item-label');
+      checkItems.push({
+        name: nameEl?.textContent || `检查项${Number(idx) + 1}`,
+        result: val.result || '',
+        note: val.note || ''
+      });
+    });
+
+    const findings = card.querySelector('[data-check-text="findings"]')?.value || '';
+    const suggestions = card.querySelector('[data-check-text="suggestions"]')?.value || '';
+    const checker = card.querySelector('[data-check-text="checker"]')?.value || '';
+
+    try {
+      await api(`/api/pre-checklists/${id}/check`, {
+        method: 'PATCH',
+        body: JSON.stringify({ checkItems, findings, suggestions, checker, status })
+      });
+      await load();
+      toast(status === '待检查' ? '已保存草稿' : `已${status}`);
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+  if (generateBtn) {
+    const viewId = generateBtn.id.replace('generate-btn-', '');
+    const dateInput = document.getElementById(`generate-date-${viewId}`);
+    const performanceDate = dateInput?.value;
+    if (!performanceDate) {
+      toast('请选择演出日期');
+      return;
+    }
+    try {
+      const result = await api('/api/pre-checklists/generate', {
+        method: 'POST',
+        body: JSON.stringify({ performanceDate })
+      });
+      await load();
+      toast(`已生成 ${result.created} 个检查任务（共 ${result.total} 条排期）`);
+    } catch (error) {
+      toast(error.message);
+    }
+  }
 });
 
 document.addEventListener('input', (event) => {
   const view = state.config.views.find((entry) => entry.id && (event.target.id === `search-${entry.id}` || event.target.id === `status-${entry.id}`));
-  if (view) $(`#list-${view.id}`).innerHTML = renderList(view);
+  if (view) {
+    if (view.type === 'preChecklist') {
+      $(`#list-${view.id}`).innerHTML = renderPreChecklistList(view);
+    } else {
+      $(`#list-${view.id}`).innerHTML = renderList(view);
+    }
+  }
 });
 
 document.addEventListener('submit', async (event) => {
@@ -358,7 +607,20 @@ document.addEventListener('submit', async (event) => {
   if (!form) return;
   event.preventDefault();
   const view = state.config.views.find((entry) => entry.id === form.dataset.view);
-  await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(values(form, view)) });
+  let payload = values(form, view);
+  if (view.collection === 'preChecklists') {
+    payload.checkItems = (state.config.checkItems || []).map((name) => ({
+      name,
+      result: '',
+      note: ''
+    }));
+    payload.findings = '';
+    payload.suggestions = '';
+    payload.checker = '';
+    payload.checkedAt = '';
+    if (!payload.status) payload.status = '待检查';
+  }
+  await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(payload) });
   form.reset();
   await load();
   toast('已保存');

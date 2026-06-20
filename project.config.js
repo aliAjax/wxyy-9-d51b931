@@ -15,15 +15,28 @@ module.exports = {
     '待确认': 'warn',
     '库存充足': 'ok',
     '库存不足': 'warn',
-    '库存告警': 'bad'
+    '库存告警': 'bad',
+    '待检查': 'warn',
+    '检查通过': 'ok',
+    '检查不通过': 'bad'
   },
   collections: {
     wigs: { label: '假发档案' },
     repairs: { label: '维修单' },
     schedules: { label: '演出排期' },
     consumables: { label: '耗材台账' },
-    staff: { label: '服化团队' }
+    staff: { label: '服化团队' },
+    preChecklists: { label: '演出前检查' }
   },
+  checkItems: [
+    '外观完整性',
+    '发网状态',
+    '发际线贴合度',
+    '定型效果',
+    '清洁度',
+    '发丝牢固度',
+    '配件齐全'
+  ],
   stats: [
     { label: '假发档案', collection: 'wigs' },
     { label: '可演出', collection: 'wigs', filter: { field: 'status', value: '可演出' } },
@@ -35,7 +48,10 @@ module.exports = {
     { label: '团队成员', collection: 'staff' },
     { label: '待处理维修', collection: 'repairs', filter: { field: 'status', value: '待处理' } },
     { label: '维修中', collection: 'repairs', filter: { field: 'status', value: '维修中' } },
-    { label: '待检查', collection: 'repairs', filter: { field: 'status', value: '待检查' } }
+    { label: '待检查', collection: 'repairs', filter: { field: 'status', value: '待检查' } },
+    { label: '待检查清单', collection: 'preChecklists', filter: { field: 'status', value: '待检查' } },
+    { label: '检查通过', collection: 'preChecklists', filter: { field: 'status', value: '检查通过' } },
+    { label: '检查不通过', collection: 'preChecklists', filter: { field: 'status', value: '检查不通过' } }
   ],
   views: [
     {
@@ -72,6 +88,38 @@ module.exports = {
         { label: '假发', name: 'wigId', type: 'relation', collection: 'wigs', labelFields: ['role', 'show', 'color'], required: true, wide: true },
         { label: '排期状态', name: 'status', type: 'select', options: ['已排期', '待确认'] },
         { label: '备注', name: 'note', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'preChecklists',
+      label: '演出前检查',
+      collection: 'preChecklists',
+      type: 'preChecklist',
+      formTitle: '生成检查清单',
+      listTitle: '检查任务',
+      submitLabel: '生成检查任务',
+      searchPlaceholder: '搜索剧目、角色',
+      searchFields: ['show', 'role'],
+      statusField: 'status',
+      statusOptions: ['待检查', '检查通过', '检查不通过'],
+      titleFields: ['show', 'performanceDate'],
+      summaryFields: ['findings'],
+      relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },
+      detailFields: [
+        { label: '演出日期', name: 'performanceDate' },
+        { label: '角色', name: 'role' },
+        { label: '检查状态', name: 'status' },
+        { label: '检查人', name: 'checker' }
+      ],
+      showWigStatus: true,
+      generateFromSchedules: true,
+      checkItemList: true,
+      fields: [
+        { label: '演出日期', name: 'performanceDate', type: 'date', required: true },
+        { label: '剧目', name: 'show', required: true },
+        { label: '角色', name: 'role', required: true },
+        { label: '假发', name: 'wigId', type: 'relation', collection: 'wigs', labelFields: ['role', 'show', 'color'], required: true, wide: true },
+        { label: '检查状态', name: 'status', type: 'select', options: ['待检查', '检查通过', '检查不通过'] }
       ]
     },
     {
@@ -205,6 +253,34 @@ module.exports = {
       patches: [
         { field: 'status', value: '已完成' },
         { target: 'related', field: 'status', value: '可演出' }
+      ]
+    },
+    {
+      id: 'check-pass',
+      label: '检查通过',
+      collection: 'preChecklists',
+      relation: { collection: 'wigs', localKey: 'wigId' },
+      patches: [
+        { field: 'status', value: '检查通过' },
+        { target: 'related', field: 'status', value: '可演出' }
+      ]
+    },
+    {
+      id: 'check-fail',
+      label: '检查不通过',
+      collection: 'preChecklists',
+      relation: { collection: 'wigs', localKey: 'wigId' },
+      patches: [
+        { field: 'status', value: '检查不通过' },
+        { target: 'related', field: 'status', value: '需要维修' }
+      ]
+    },
+    {
+      id: 'check-recheck',
+      label: '重新检查',
+      collection: 'preChecklists',
+      patches: [
+        { field: 'status', value: '待检查' }
       ]
     }
   ]

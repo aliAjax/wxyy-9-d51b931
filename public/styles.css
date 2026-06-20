@@ -457,6 +457,131 @@ main {
   transform: translateY(0);
 }
 
+.check-items-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(17, 97, 92, .05), rgba(163, 92, 0, .04));
+  border-radius: 6px;
+  border: 1px solid rgba(216, 208, 194, .5);
+}
+
+.check-summary-text {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check-items-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.check-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f7f3eb;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.check-item-name {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.findings,
+.suggestions {
+  margin: 8px 0;
+  padding: 10px;
+  background: #fff8f0;
+  border-left: 3px solid var(--warn);
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.suggestions {
+  background: #f0f8f4;
+  border-left-color: var(--ok);
+}
+
+.findings strong,
+.suggestions strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.check-form-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px solid var(--line);
+}
+
+.check-form-panel h4 {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.check-form-items {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.check-form-item {
+  display: grid;
+  grid-template-columns: 120px 100px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #f7f3eb;
+  border-radius: 6px;
+}
+
+.check-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  display: block;
+}
+
+.generate-section {
+  margin-bottom: 8px;
+}
+
+.generate-section label {
+  margin-bottom: 10px;
+}
+
+.single-create-form h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+@media (max-width: 720px) {
+  .check-items-list {
+    grid-template-columns: 1fr;
+  }
+
+  .check-form-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 980px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));

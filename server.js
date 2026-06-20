@@ -158,6 +158,117 @@ function runAction(db, action, item) {
   return { item };
 }
 
+app.post('/api/pre-checklists/generate', async (req, res) => {
+  const db = await readDb();
+  const { performanceDate } = req.body;
+  if (!performanceDate) return res.status(400).json({ error: '请提供演出日期' });
+
+  const schedules = (db.schedules || []).filter((s) => s.performanceDate === performanceDate);
+  if (!schedules.length) return res.status(404).json({ error: '该日期暂无演出排期' });
+
+  const existingChecklists = (db.preChecklists || []).filter((c) => c.performanceDate === performanceDate);
+  const existingWigIds = new Set(existingChecklists.map((c) => c.wigId));
+
+  const checkItems = (config.checkItems || []).map((name) => ({
+    name,
+    result: '',
+    note: ''
+  }));
+
+  const now = new Date().toISOString();
+  let createdCount = 0;
+
+  for (const schedule of schedules) {
+    if (existingWigIds.has(schedule.wigId)) continue;
+
+    const wig = (db.wigs || []).find((w) => w.id === schedule.wigId);
+    const checklist = {
+      id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+      performanceDate: schedule.performanceDate,
+      show: schedule.show,
+      role: schedule.role,
+      wigId: schedule.wigId,
+      status: '待检查',
+      checkItems: JSON.parse(JSON.stringify(checkItems)),
+      findings: '',
+      suggestions: '',
+      checker: '',
+      checkedAt: '',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}`)]
+    };
+
+    db.preChecklists = db.preChecklists || [];
+    db.preChecklists.push(checklist);
+    createdCount++;
+
+    if (wig) {
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('演出前检查生成', `${schedule.performanceDate} 演出检查任务已生成`));
+      wig.updatedAt = now;
+    }
+  }
+
+  await writeDb(db);
+  res.json({ created: createdCount, total: schedules.length });
+});
+
+app.patch('/api/pre-checklists/:id/check', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+  const { checkItems, findings, suggestions, checker, status } = req.body;
+
+  const checklist = (db.preChecklists || []).find((c) => c.id === id);
+  if (!checklist) return res.status(404).json({ error: '检查任务不存在' });
+
+  const now = new Date().toISOString();
+  const prevStatus = checklist.status;
+
+  if (checkItems) checklist.checkItems = checkItems;
+  if (findings !== undefined) checklist.findings = findings;
+  if (suggestions !== undefined) checklist.suggestions = suggestions;
+  if (checker) checklist.checker = checker;
+
+  if (status) {
+    checklist.status = status;
+    checklist.checkedAt = now;
+  }
+
+  checklist.updatedAt = now;
+  checklist.history = checklist.history || [];
+
+  const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
+
+  if (status === '检查通过') {
+    checklist.history.unshift(stamp('检查通过', findings || '检查合格，可上场演出'));
+    if (wig) {
+      wig.status = '可演出';
+      wig.updatedAt = now;
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('演出前检查通过', '标记为可演出'));
+    }
+  } else if (status === '检查不通过') {
+    checklist.history.unshift(stamp('检查不通过', findings || '发现问题需维修'));
+    if (wig) {
+      wig.status = '需要维修';
+      wig.updatedAt = now;
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('演出前检查不通过', `发现问题：${findings || '需维修'}`));
+    }
+  } else if (prevStatus !== '待检查' && status === '待检查') {
+    checklist.history.unshift(stamp('重新检查', '重置为待检查状态'));
+    if (wig) {
+      wig.updatedAt = now;
+      wig.history = wig.history || [];
+      wig.history.unshift(stamp('重新检查', '演出前检查重置'));
+    }
+  }
+
+  await writeDb(db);
+  res.json(checklist);
+});
+
 app.get('/api/staff-stats', async (req, res) => {
   const db = await readDb();
   const repairs = db.repairs || [];
