@@ -120,13 +120,24 @@ function findLatestOperation(db, collection, targetId, ignoreAuditId) {
 
 function hasDependencies(db, auditLog) {
   const { collection, targetId, operationType, id } = auditLog;
+  const affectedTargets = [
+    { collection, targetId },
+    ...(auditLog.relatedChanges || []).map((rc) => ({
+      collection: rc.collection,
+      targetId: rc.targetId
+    }))
+  ];
+
+  const touchesAffectedTarget = (change) => affectedTargets.some((target) =>
+    change.collection === target.collection && change.targetId === target.targetId
+  );
 
   for (const log of db.auditLogs || []) {
     if (log.undone || log.id === id) continue;
 
     if (new Date(log.createdAt) <= new Date(auditLog.createdAt)) continue;
 
-    if (log.collection === collection && log.targetId === targetId) {
+    if (touchesAffectedTarget(log)) {
       return {
         canUndo: false,
         reason: `后续操作「${log.summary}」已修改该数据，无法撤销`
@@ -134,7 +145,7 @@ function hasDependencies(db, auditLog) {
     }
 
     for (const rc of log.relatedChanges || []) {
-      if (rc.collection === collection && rc.targetId === targetId) {
+      if (touchesAffectedTarget(rc)) {
         return {
           canUndo: false,
           reason: `后续操作「${log.summary}」依赖该数据，无法撤销`
