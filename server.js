@@ -128,6 +128,7 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
     lending.history.unshift(stamp('重新检查', '清空旧结果，重置为归还待检查状态'));
 
     if (wig) {
+      wig.status = '归还待检查';
       wig.updatedAt = now;
       wig.history = wig.history || [];
       wig.history.unshift(stamp('归还重新检查', '归还检查已重置'));
@@ -209,6 +210,11 @@ app.patch('/api/:collection/:id', async (req, res) => {
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
   const item = db[collection].find((entry) => entry.id === id);
   if (!item) return res.status(404).json({ error: 'not found' });
+
+  if ((collection === 'wigs' || collection === 'lendings') && req.body.status !== undefined && req.body.status !== item.status) {
+    return res.status(409).json({ error: '不能直接修改状态字段，请使用专用动作接口' });
+  }
+
   const historyAction = req.body.historyAction;
   delete req.body.historyAction;
   Object.assign(item, req.body, { updatedAt: new Date().toISOString() });
@@ -224,6 +230,20 @@ app.delete('/api/:collection/:id', async (req, res) => {
   const db = await readDb();
   const { collection, id } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
+
+  if (collection === 'lendings') {
+    const lending = db.lendings.find((l) => l.id === id);
+    if (lending && (lending.status === '借出中' || lending.status === '归还待检查')) {
+      const wig = db.wigs?.find((w) => w.id === lending.wigId);
+      if (wig) {
+        wig.status = '可演出';
+        wig.updatedAt = new Date().toISOString();
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('借出记录删除', '删除借出记录，恢复为可演出状态'));
+      }
+    }
+  }
+
   const before = db[collection].length;
   db[collection] = db[collection].filter((entry) => entry.id !== id);
   if (db[collection].length === before) return res.status(404).json({ error: 'not found' });

@@ -354,7 +354,8 @@ module.exports = {
         { left: 'item.status', op: 'eq', right: '借出中', message: '只有借出中的记录可以提交归还' }
       ],
       patches: [
-        { field: 'status', value: '归还待检查' }
+        { field: 'status', value: '归还待检查' },
+        { target: 'related', field: 'status', value: '归还待检查' }
       ]
     },
     {
