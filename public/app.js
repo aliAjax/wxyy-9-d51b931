@@ -4,6 +4,7 @@ const state = {
   staffStats: {},
   dispatchBoard: {},
   availabilityWarnings: { warnings: [], stats: {} },
+  auditLogs: { data: [], total: 0, loading: false },
   activeTab: ''
 };
 
@@ -145,10 +146,15 @@ function renderTabs() {
   state.activeTab = state.config.views[0].id;
 }
 
-function setTab(tabId) {
+async function setTab(tabId) {
   state.activeTab = tabId;
   $$('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === tabId));
   $$('.view').forEach((view) => view.classList.toggle('active', view.id === tabId));
+
+  if (tabId === 'auditLogs' && state.auditLogs.data.length === 0) {
+    await loadAuditLogs();
+    renderAuditList();
+  }
 }
 
 function getPendingReviewCount() {
@@ -1359,6 +1365,7 @@ function render() {
     if (view.type === 'wigImport') return renderWigImportView(view);
     if (view.type === 'lending') return renderLendingView(view);
     if (view.type === 'repairReview') return renderRepairReviewView(view);
+    if (view.type === 'auditLogs') return renderAuditLogsView(view);
     return renderCrudView(view);
   }).join('');
   setTab(state.activeTab || state.config.views[0].id);
@@ -1375,7 +1382,31 @@ async function load() {
   state.staffStats = staffStats;
   state.dispatchBoard = dispatchBoard;
   state.availabilityWarnings = availabilityWarnings;
+
+  if (state.activeTab === 'auditLogs') {
+    await loadAuditLogs();
+  }
+
   render();
+}
+
+async function loadAuditLogs(offset = 0) {
+  state.auditLogs.loading = true;
+  try {
+    const result = await api(`/api/audit-logs?limit=50&offset=${offset}`);
+    if (offset === 0) {
+      state.auditLogs = { ...result, loading: false };
+    } else {
+      state.auditLogs = {
+        ...result,
+        data: [...state.auditLogs.data, ...result.data],
+        loading: false
+      };
+    }
+  } catch (error) {
+    state.auditLogs.loading = false;
+    toast(error.message);
+  }
 }
 
 document.addEventListener('click', async (event) => {
@@ -1389,6 +1420,9 @@ document.addEventListener('click', async (event) => {
   const csvParseBtn = event.target.closest('#csv-parse-btn');
   const importClearBtn = event.target.closest('#import-clear-btn');
   const importConfirmBtn = event.target.closest('#import-confirm-btn');
+  const auditUndoBtn = event.target.closest('[data-audit-undo]');
+  const auditLoadMoreBtn = event.target.closest('[data-audit-load-more]');
+  const auditExpandBtn = event.target.closest('[data-audit-expand]');
 
   if (tab) setTab(tab.dataset.tab);
   if (action) {
@@ -1834,6 +1868,41 @@ document.addEventListener('click', async (event) => {
       toast(error.message);
     }
   }
+
+  if (auditExpandBtn) {
+    const id = auditExpandBtn.dataset.auditExpand;
+    const detailEl = document.getElementById(`audit-detail-${id}`);
+    if (detailEl) {
+      detailEl.style.display = detailEl.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+
+  if (auditUndoBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = auditUndoBtn.dataset.auditUndo;
+    const confirmed = confirm('确定要撤销此操作吗？撤销后数据将恢复到操作前的状态。');
+    if (!confirmed) return;
+
+    try {
+      const result = await api(`/api/audit-logs/${id}/undo`, { method: 'POST' });
+      await load();
+      await loadAuditLogs();
+      renderAuditList();
+      toast(result.message || '撤销成功');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  if (auditLoadMoreBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (state.auditLogs.loading) return;
+    const currentOffset = state.auditLogs.data.length;
+    await loadAuditLogs(currentOffset);
+    renderAuditList();
+  }
 });
 
 document.addEventListener('input', (event) => {
@@ -1902,6 +1971,180 @@ document.addEventListener('submit', async (event) => {
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));
+
+function operationTypeLabel(type) {
+  const labels = {
+    create: '创建',
+    update: '更新',
+    delete: '删除',
+    action: '动作'
+  };
+  return labels[type] || type;
+}
+
+function operationTypeTone(type) {
+  const tones = {
+    create: 'ok',
+    update: 'warn',
+    delete: 'bad',
+    action: 'accent'
+  };
+  return tones[type] || '';
+}
+
+function renderChangesDiff(before, after, title) {
+  if (!before && !after) return '';
+
+  const fields = new Set();
+  if (before) Object.keys(before).forEach(k => fields.add(k));
+  if (after) Object.keys(after).forEach(k => fields.add(k));
+
+  const changes = [];
+  for (const field of fields) {
+    if (['updatedAt', 'history', 'createdAt'].includes(field)) continue;
+    const beforeVal = before?.[field];
+    const afterVal = after?.[field];
+    if (JSON.stringify(beforeVal) === JSON.stringify(afterVal)) continue;
+
+    changes.push(`
+      <div class="diff-row">
+        <span class="diff-field">${escapeHtml(field)}</span>
+        <span class="diff-before">${beforeVal !== undefined ? escapeHtml(JSON.stringify(beforeVal)) : '—'}</span>
+        <span class="diff-arrow">→</span>
+        <span class="diff-after">${afterVal !== undefined ? escapeHtml(JSON.stringify(afterVal)) : '—'}</span>
+      </div>
+    `);
+  }
+
+  if (changes.length === 0) return '';
+
+  return `
+    <div class="diff-section">
+      <div class="diff-title">${escapeHtml(title)}</div>
+      <div class="diff-table">
+        ${changes.join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderAuditLogCard(log) {
+  const collectionLabel = state.config.collections[log.collection]?.label || log.collection;
+  const isUndone = log.undone;
+  const canUndo = log.canUndo;
+  const cannotUndoReason = log.cannotUndoReason;
+
+  let relatedChangesHtml = '';
+  if (log.relatedChanges && log.relatedChanges.length > 0) {
+    relatedChangesHtml = log.relatedChanges.map(rc => {
+      const rcLabel = state.config.collections[rc.collection]?.label || rc.collection;
+      return renderChangesDiff(rc.before, rc.after, `关联变更：${rcLabel} - ${rc.targetLabel || rc.targetId}`);
+    }).join('');
+  }
+
+  const mainDiffHtml = renderChangesDiff(log.before, log.after,
+    log.operationType === 'create' ? '创建数据' :
+    log.operationType === 'delete' ? '删除数据' :
+    '变更详情'
+  );
+
+  const undoButton = isUndone
+    ? `<span class="pill muted">已撤销</span>`
+    : canUndo
+      ? `<button class="danger" data-audit-undo="${log.id}">撤销此操作</button>`
+      : `<button class="ghost" disabled title="${escapeHtml(cannotUndoReason || '')}">无法撤销</button>`;
+
+  const undoReason = !isUndone && !canUndo && cannotUndoReason
+    ? `<div class="undo-reason">${escapeHtml(cannotUndoReason)}</div>`
+    : '';
+
+  return `
+    <div class="audit-card ${isUndone ? 'undone' : ''}">
+      <div class="audit-header">
+        <div class="audit-title">
+          <span class="pill ${operationTypeTone(log.operationType)}">${operationTypeLabel(log.operationType)}</span>
+          <span class="pill">${escapeHtml(collectionLabel)}</span>
+          <span class="audit-summary">${escapeHtml(log.summary)}</span>
+        </div>
+        <div class="audit-time">${fmtDate(log.createdAt)}</div>
+      </div>
+      <div class="audit-meta">
+        <span>影响对象：${escapeHtml(log.targetLabel || log.targetId)}</span>
+        ${log.actionLabel ? `<span>动作：${escapeHtml(log.actionLabel)}</span>` : ''}
+        ${log.relatedChanges && log.relatedChanges.length > 0 ? `<span>关联变更：${log.relatedChanges.length} 项</span>` : ''}
+      </div>
+      <div class="audit-actions">
+        ${undoButton}
+        <button class="ghost" data-audit-expand="${log.id}">查看详情</button>
+      </div>
+      ${undoReason}
+      <div id="audit-detail-${log.id}" class="audit-detail" style="display: none;">
+        ${mainDiffHtml}
+        ${relatedChangesHtml}
+        <div class="audit-ids">
+          <div><strong>审计ID：</strong>${escapeHtml(log.id)}</div>
+          <div><strong>对象ID：</strong>${escapeHtml(log.targetId)}</div>
+          ${log.undoneAt ? `<div><strong>撤销时间：</strong>${fmtDate(log.undoneAt)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAuditList() {
+  const listEl = $('#list-auditLogs');
+  if (!listEl) return;
+
+  const logs = state.auditLogs.data || [];
+  const total = state.auditLogs.total || 0;
+  const loading = state.auditLogs.loading;
+
+  if (logs.length === 0 && !loading) {
+    listEl.innerHTML = '<div class="empty">暂无操作记录</div>';
+    return;
+  }
+
+  let loadMoreHtml = '';
+  if (logs.length < total) {
+    loadMoreHtml = `
+      <div class="load-more">
+        <button class="ghost" data-audit-load-more ${loading ? 'disabled' : ''}>
+          ${loading ? '加载中...' : `加载更多（${logs.length}/${total}）`}
+        </button>
+      </div>
+    `;
+  }
+
+  listEl.innerHTML = logs.map(renderAuditLogCard).join('') + loadMoreHtml;
+}
+
+function renderAuditLogsView(view) {
+  return `
+    <section class="view" id="${view.id}">
+      <h2>${escapeHtml(view.formTitle)}</h2>
+      <div class="audit-description">
+        <p>记录所有数据的新增、修改、删除和动作流转操作。支持撤销最近一次未被依赖的普通操作。</p>
+      </div>
+      <div class="audit-stats">
+        <div class="stat">
+          <span>总记录数</span>
+          <strong>${state.auditLogs.total || 0}</strong>
+        </div>
+        <div class="stat">
+          <span>已撤销</span>
+          <strong>${(state.auditLogs.data || []).filter(l => l.undone).length}</strong>
+        </div>
+        <div class="stat">
+          <span>可撤销</span>
+          <strong>${(state.auditLogs.data || []).filter(l => !l.undone && l.canUndo).length}</strong>
+        </div>
+      </div>
+      <div id="list-${view.id}" class="audit-list">
+        ${state.auditLogs.loading ? '<div class="empty">加载中...</div>' : ''}
+      </div>
+    </section>
+  `;
+}
 
 async function boot() {
   state.config = await api('/api/config');

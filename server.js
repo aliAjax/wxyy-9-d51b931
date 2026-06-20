@@ -31,6 +31,243 @@ function sortNewest(a, b) {
   return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
 }
 
+const AUDIT_COLLECTIONS = ['wigs', 'repairs', 'repairReviews', 'schedules', 'preChecklists', 'lendings', 'consumables', 'staff'];
+
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function getTargetLabel(collection, item) {
+  if (!item) return '';
+  const labelMap = {
+    wigs: () => [item.role, item.show].filter(Boolean).join(' / '),
+    repairs: () => item.type,
+    repairReviews: () => item.conclusion || '复盘记录',
+    schedules: () => [item.show, item.performanceDate].filter(Boolean).join(' / '),
+    preChecklists: () => [item.show, item.performanceDate].filter(Boolean).join(' / '),
+    lendings: () => [item.actor, item.show].filter(Boolean).join(' / '),
+    consumables: () => item.name,
+    staff: () => item.name
+  };
+  return labelMap[collection] ? labelMap[collection]() : item.id;
+}
+
+function getSummary(operationType, collection, before, after, actionLabel) {
+  const label = config.collections[collection]?.label || collection;
+  const targetLabel = getTargetLabel(collection, after || before);
+
+  if (operationType === 'create') {
+    return `创建${label}：${targetLabel}`;
+  }
+  if (operationType === 'delete') {
+    return `删除${label}：${targetLabel}`;
+  }
+  if (operationType === 'action') {
+    return `动作「${actionLabel}」：${targetLabel}`;
+  }
+  const changedFields = [];
+  if (before && after) {
+    for (const key of Object.keys(after)) {
+      if (['updatedAt', 'history'].includes(key)) continue;
+      if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
+        changedFields.push(key);
+      }
+    }
+  }
+  const fieldDesc = changedFields.length > 0 ? `（${changedFields.slice(0, 3).join('、')}${changedFields.length > 3 ? '...' : ''}）` : '';
+  return `更新${label}${fieldDesc}：${targetLabel}`;
+}
+
+function createAuditLog(db, operationType, collection, targetId, before, after, options = {}) {
+  const { actionLabel = '', relatedChanges = [] } = options;
+
+  db.auditLogs = db.auditLogs || [];
+
+  const log = {
+    id: `audit-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+    operationType,
+    collection,
+    targetId,
+    targetLabel: getTargetLabel(collection, after || before),
+    actionLabel,
+    before: before ? deepClone(before) : null,
+    after: after ? deepClone(after) : null,
+    relatedChanges: relatedChanges.map(rc => ({
+      collection: rc.collection,
+      targetId: rc.targetId,
+      targetLabel: getTargetLabel(rc.collection, rc.after || rc.before),
+      before: rc.before ? deepClone(rc.before) : null,
+      after: rc.after ? deepClone(rc.after) : null
+    })),
+    summary: getSummary(operationType, collection, before, after, actionLabel),
+    createdAt: new Date().toISOString(),
+    undone: false,
+    undoneAt: null
+  };
+
+  db.auditLogs.unshift(log);
+  return log;
+}
+
+function findLatestOperation(db, collection, targetId, ignoreAuditId) {
+  return (db.auditLogs || []).find(log =>
+    !log.undone &&
+    log.id !== ignoreAuditId &&
+    log.collection === collection &&
+    log.targetId === targetId
+  );
+}
+
+function hasDependencies(db, auditLog) {
+  const { collection, targetId, operationType, id } = auditLog;
+
+  for (const log of db.auditLogs || []) {
+    if (log.undone || log.id === id) continue;
+
+    if (new Date(log.createdAt) <= new Date(auditLog.createdAt)) continue;
+
+    if (log.collection === collection && log.targetId === targetId) {
+      return {
+        canUndo: false,
+        reason: `后续操作「${log.summary}」已修改该数据，无法撤销`
+      };
+    }
+
+    for (const rc of log.relatedChanges || []) {
+      if (rc.collection === collection && rc.targetId === targetId) {
+        return {
+          canUndo: false,
+          reason: `后续操作「${log.summary}」依赖该数据，无法撤销`
+        };
+      }
+    }
+
+    if (operationType === 'create') {
+      const checkRefs = (item) => {
+        if (!item || typeof item !== 'object') return false;
+        for (const key of Object.keys(item)) {
+          if (item[key] === targetId) return true;
+          if (typeof item[key] === 'object' && checkRefs(item[key])) return true;
+        }
+        return false;
+      };
+      if (log.after && checkRefs(log.after)) {
+        return {
+          canUndo: false,
+          reason: `后续操作「${log.summary}」引用了该数据，无法撤销`
+        };
+      }
+      for (const rc of log.relatedChanges || []) {
+        if (rc.after && checkRefs(rc.after)) {
+          return {
+            canUndo: false,
+            reason: `后续操作「${log.summary}」引用了该数据，无法撤销`
+          };
+        }
+      }
+    }
+  }
+
+  return { canUndo: true };
+}
+
+function undoAuditLog(db, auditLog) {
+  const { operationType, collection, targetId, before, after, relatedChanges = [] } = auditLog;
+
+  const allChanges = [{ collection, targetId, before, after }, ...relatedChanges];
+
+  for (const change of allChanges) {
+    const { collection: col, targetId: tid, before: bf, after: af } = change;
+
+    if (!AUDIT_COLLECTIONS.includes(col)) continue;
+    if (!Array.isArray(db[col])) continue;
+
+    const idx = db[col].findIndex(item => item.id === tid);
+
+    if (operationType === 'create') {
+      if (idx !== -1) {
+        db[col].splice(idx, 1);
+      }
+    } else if (operationType === 'delete') {
+      if (idx === -1 && bf) {
+        db[col].push(deepClone(bf));
+      }
+    } else {
+      if (idx !== -1 && bf) {
+        db[col][idx] = deepClone(bf);
+      }
+    }
+  }
+
+  auditLog.undone = true;
+  auditLog.undoneAt = new Date().toISOString();
+
+  return true;
+}
+
+app.get('/api/audit-logs', async (req, res) => {
+  const db = await readDb();
+  const { limit = 50, offset = 0, undone } = req.query;
+
+  let logs = db.auditLogs || [];
+
+  if (undone !== undefined) {
+    const undoneFlag = undone === 'true';
+    logs = logs.filter(log => log.undone === undoneFlag);
+  }
+
+  const total = logs.length;
+  const paginatedLogs = logs.slice(Number(offset), Number(offset) + Number(limit));
+
+  const logsWithCanUndo = paginatedLogs.map(log => {
+    const depCheck = hasDependencies(db, log);
+    return {
+      ...log,
+      canUndo: !log.undone && depCheck.canUndo,
+      cannotUndoReason: depCheck.reason || null
+    };
+  });
+
+  res.json({
+    data: logsWithCanUndo,
+    total,
+    limit: Number(limit),
+    offset: Number(offset)
+  });
+});
+
+app.post('/api/audit-logs/:id/undo', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+
+  const auditLog = (db.auditLogs || []).find(log => log.id === id);
+  if (!auditLog) {
+    return res.status(404).json({ error: '审计记录不存在' });
+  }
+
+  if (auditLog.undone) {
+    return res.status(400).json({ error: '该操作已被撤销，无法重复撤销' });
+  }
+
+  const depCheck = hasDependencies(db, auditLog);
+  if (!depCheck.canUndo) {
+    return res.status(409).json({ error: depCheck.reason });
+  }
+
+  try {
+    undoAuditLog(db, auditLog);
+    await writeDb(db);
+
+    res.json({
+      success: true,
+      message: '撤销成功',
+      log: auditLog
+    });
+  } catch (error) {
+    res.status(500).json({ error: `撤销失败：${error.message}` });
+  }
+});
+
 app.get('/api/config', (req, res) => {
   res.json(config);
 });
@@ -62,6 +299,8 @@ app.post('/api/lendings', async (req, res) => {
     return res.status(409).json({ error: '该假发存在未完成的借出记录' });
   }
 
+  const wigBefore = deepClone(wig);
+
   const item = {
     id: `lending-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
     wigId: body.wigId,
@@ -89,12 +328,21 @@ app.post('/api/lendings', async (req, res) => {
   db.lendings = db.lendings || [];
   db.lendings.push(item);
 
+  const relatedChanges = [];
   if (wig) {
     wig.status = '借出中';
     wig.updatedAt = now;
     wig.history = wig.history || [];
     wig.history.unshift(stamp('借出', `借给 ${body.actor || '演员'}，用于 ${body.show || '演出'}`));
+    relatedChanges.push({
+      collection: 'wigs',
+      targetId: wig.id,
+      before: wigBefore,
+      after: deepClone(wig)
+    });
   }
+
+  createAuditLog(db, 'create', 'lendings', item.id, null, item, { relatedChanges });
 
   await writeDb(db);
   res.status(201).json(item);
@@ -111,7 +359,10 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
   const now = new Date().toISOString();
   const prevStatus = lending.status;
 
+  const lendingBefore = deepClone(lending);
+
   const wig = (db.wigs || []).find((w) => w.id === lending.wigId);
+  const wigBefore = wig ? deepClone(wig) : null;
 
   if (reset) {
     lending.checkItems = (config.checkItems || []).map((name) => ({
@@ -197,6 +448,20 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
     lending.updatedAt = now;
   }
 
+  const relatedChanges = [];
+  if (wig && wigBefore) {
+    if (JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+      relatedChanges.push({
+        collection: 'wigs',
+        targetId: wig.id,
+        before: wigBefore,
+        after: deepClone(wig)
+      });
+    }
+  }
+
+  createAuditLog(db, 'update', 'lendings', lending.id, lendingBefore, deepClone(lending), { relatedChanges });
+
   await writeDb(db);
   res.json(lending);
 });
@@ -218,6 +483,7 @@ app.post('/api/repair-reviews', async (req, res) => {
   }
 
   const wig = db.wigs?.find((w) => w.id === repair.wigId);
+  const wigBefore = wig ? deepClone(wig) : null;
 
   const now = new Date().toISOString();
   const item = {
@@ -240,11 +506,22 @@ app.post('/api/repair-reviews', async (req, res) => {
   db.repairReviews = db.repairReviews || [];
   db.repairReviews.push(item);
 
+  const relatedChanges = [];
   if (wig) {
     wig.history = wig.history || [];
     wig.history.unshift(stamp('维修复盘', `维修类型：${repair.type}，复盘人：${body.reviewer || '未填写'}`));
     wig.updatedAt = now;
+    if (wigBefore) {
+      relatedChanges.push({
+        collection: 'wigs',
+        targetId: wig.id,
+        before: wigBefore,
+        after: deepClone(wig)
+      });
+    }
   }
+
+  createAuditLog(db, 'create', 'repairReviews', item.id, null, item, { relatedChanges });
 
   await writeDb(db);
   res.status(201).json(item);
@@ -257,6 +534,8 @@ app.patch('/api/repair-reviews/:id', async (req, res) => {
 
   const review = db.repairReviews?.find((r) => r.id === id);
   if (!review) return res.status(404).json({ error: '复盘记录不存在' });
+
+  const reviewBefore = deepClone(review);
 
   const now = new Date().toISOString();
   const oldConclusion = review.conclusion;
@@ -271,6 +550,8 @@ app.patch('/api/repair-reviews/:id', async (req, res) => {
   review.updatedAt = now;
   review.history = review.history || [];
   review.history.unshift(stamp('更新复盘', body.conclusion && body.conclusion !== oldConclusion ? `结论更新：${body.conclusion}` : '复盘信息已更新'));
+
+  createAuditLog(db, 'update', 'repairReviews', review.id, reviewBefore, deepClone(review));
 
   await writeDb(db);
   res.json(review);
@@ -289,6 +570,11 @@ app.post('/api/:collection', async (req, res) => {
     history: [stamp('创建', req.body.note || req.body.memo || '')]
   };
   db[collection].push(item);
+
+  if (AUDIT_COLLECTIONS.includes(collection)) {
+    createAuditLog(db, 'create', collection, item.id, null, item);
+  }
+
   await writeDb(db);
   res.status(201).json(item);
 });
@@ -304,6 +590,8 @@ app.patch('/api/:collection/:id', async (req, res) => {
     return res.status(409).json({ error: '不能直接修改状态字段，请使用专用动作接口' });
   }
 
+  const itemBefore = AUDIT_COLLECTIONS.includes(collection) ? deepClone(item) : null;
+
   const historyAction = req.body.historyAction;
   delete req.body.historyAction;
   Object.assign(item, req.body, { updatedAt: new Date().toISOString() });
@@ -311,6 +599,11 @@ app.patch('/api/:collection/:id', async (req, res) => {
   if (historyAction || req.body.note || req.body.memo || req.body.status) {
     item.history.unshift(stamp(historyAction || req.body.status || '更新', req.body.note || req.body.memo || ''));
   }
+
+  if (AUDIT_COLLECTIONS.includes(collection) && itemBefore) {
+    createAuditLog(db, 'update', collection, id, itemBefore, deepClone(item));
+  }
+
   await writeDb(db);
   res.json(item);
 });
@@ -320,15 +613,27 @@ app.delete('/api/:collection/:id', async (req, res) => {
   const { collection, id } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
 
+  const itemBefore = AUDIT_COLLECTIONS.includes(collection)
+    ? deepClone(db[collection].find((entry) => entry.id === id))
+    : null;
+
+  const relatedChanges = [];
   if (collection === 'lendings') {
     const lending = db.lendings.find((l) => l.id === id);
     if (lending && (lending.status === '借出中' || lending.status === '归还待检查')) {
       const wig = db.wigs?.find((w) => w.id === lending.wigId);
       if (wig) {
+        const wigBefore = deepClone(wig);
         wig.status = '可演出';
         wig.updatedAt = new Date().toISOString();
         wig.history = wig.history || [];
         wig.history.unshift(stamp('借出记录删除', '删除借出记录，恢复为可演出状态'));
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
       }
     }
   }
@@ -336,6 +641,11 @@ app.delete('/api/:collection/:id', async (req, res) => {
   const before = db[collection].length;
   db[collection] = db[collection].filter((entry) => entry.id !== id);
   if (db[collection].length === before) return res.status(404).json({ error: 'not found' });
+
+  if (AUDIT_COLLECTIONS.includes(collection) && itemBefore) {
+    createAuditLog(db, 'delete', collection, id, itemBefore, null, { relatedChanges });
+  }
+
   await writeDb(db);
   res.status(204).end();
 });
@@ -349,6 +659,8 @@ app.patch('/api/repairs/:id/reassign', async (req, res) => {
 
   const repair = db.repairs?.find((entry) => entry.id === id);
   if (!repair) return res.status(404).json({ error: '维修单不存在' });
+
+  const repairBefore = deepClone(repair);
 
   const oldHandler = repair.handler;
   if (newHandler === oldHandler) {
@@ -367,6 +679,8 @@ app.patch('/api/repairs/:id/reassign', async (req, res) => {
     '重新指派',
     note ? `从 ${oldHandlerName} 转交给 ${newHandlerName}，备注：${note}` : `从 ${oldHandlerName} 转交给 ${newHandlerName}`
   ));
+
+  createAuditLog(db, 'update', 'repairs', repair.id, repairBefore, deepClone(repair));
 
   await writeDb(db);
   res.json(repair);
@@ -435,6 +749,15 @@ app.post('/api/action/:actionId/:id', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'not found' });
   const result = runAction(db, action, item);
   if (result.error) return res.status(409).json({ error: result.error });
+
+  if (AUDIT_COLLECTIONS.includes(action.collection) && result.auditData) {
+    createAuditLog(db, 'action', action.collection, item.id,
+      result.auditData.itemBefore, result.auditData.itemAfter, {
+        actionLabel: action.label,
+        relatedChanges: result.auditData.relatedChanges
+      });
+  }
+
   await writeDb(db);
   res.json(result.item);
 });
@@ -462,6 +785,12 @@ function runAction(db, action, item) {
   const related = action.relation ? findRelated(db, action.relation, item) : null;
   const context = { item, related };
   const levelRank = { '低': 1, '中': 2, '高': 3 };
+
+  const itemBefore = AUDIT_COLLECTIONS.includes(action.collection) ? deepClone(item) : null;
+  const relatedBefore = related && action.relation && AUDIT_COLLECTIONS.includes(action.relation.collection)
+    ? deepClone(related)
+    : null;
+
   for (const guard of action.guards || []) {
     const left = getValue(context, guard.left);
     const right = guard.rightPath ? getValue(context, guard.rightPath) : guard.right;
@@ -494,7 +823,25 @@ function runAction(db, action, item) {
     target.history = target.history || [];
     target.history.unshift(stamp(action.label, action.note || '数量调整'));
   }
-  return { item };
+
+  const auditData = {};
+  if (itemBefore) {
+    auditData.itemBefore = itemBefore;
+    auditData.itemAfter = deepClone(item);
+  }
+  if (relatedBefore && action.relation) {
+    const relatedAfter = deepClone(related);
+    if (JSON.stringify(relatedBefore) !== JSON.stringify(relatedAfter)) {
+      auditData.relatedChanges = [{
+        collection: action.relation.collection,
+        targetId: related.id,
+        before: relatedBefore,
+        after: relatedAfter
+      }];
+    }
+  }
+
+  return { item, auditData: Object.keys(auditData).length > 0 ? auditData : null };
 }
 
 app.post('/api/pre-checklists/generate', async (req, res) => {
@@ -521,6 +868,8 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
     if (existingWigIds.has(schedule.wigId)) continue;
 
     const wig = (db.wigs || []).find((w) => w.id === schedule.wigId);
+    const wigBefore = wig ? deepClone(wig) : null;
+
     const checklist = {
       id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
       performanceDate: schedule.performanceDate,
@@ -542,11 +891,22 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
     db.preChecklists.push(checklist);
     createdCount++;
 
+    const relatedChanges = [];
     if (wig) {
       wig.history = wig.history || [];
       wig.history.unshift(stamp('演出前检查生成', `${schedule.performanceDate} 演出检查任务已生成`));
       wig.updatedAt = now;
+      if (wigBefore) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
     }
+
+    createAuditLog(db, 'create', 'preChecklists', checklist.id, null, checklist, { relatedChanges });
   }
 
   await writeDb(db);
@@ -563,6 +923,10 @@ app.patch('/api/pre-checklists/:id/check', async (req, res) => {
 
   const now = new Date().toISOString();
   const prevStatus = checklist.status;
+
+  const checklistBefore = deepClone(checklist);
+  const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
+  const wigBefore = wig ? deepClone(wig) : null;
 
   if (reset) {
     checklist.checkItems = (config.checkItems || []).map((name) => ({
@@ -624,6 +988,20 @@ app.patch('/api/pre-checklists/:id/check', async (req, res) => {
       checklist.history.unshift(stamp('保存草稿', findings || '已保存检查草稿'));
     }
   }
+
+  const relatedChanges = [];
+  if (wig && wigBefore) {
+    if (JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+      relatedChanges.push({
+        collection: 'wigs',
+        targetId: wig.id,
+        before: wigBefore,
+        after: deepClone(wig)
+      });
+    }
+  }
+
+  createAuditLog(db, 'update', 'preChecklists', checklist.id, checklistBefore, deepClone(checklist), { relatedChanges });
 
   await writeDb(db);
   res.json(checklist);
@@ -758,6 +1136,8 @@ app.post('/api/wigs/batch-import', async (req, res) => {
     db.wigs.push(item);
     createdItems.push(item);
     successCount++;
+
+    createAuditLog(db, 'create', 'wigs', item.id, null, item);
   }
 
   if (successCount > 0) {
@@ -1031,6 +1411,8 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       const wig = db.wigs?.find((w) => w.id === wigId);
       if (!wig) return res.status(404).json({ error: '假发不存在' });
 
+      const wigBefore = deepClone(wig);
+
       const item = {
         id: `repairs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
         wigId,
@@ -1056,6 +1438,21 @@ app.post('/api/availability-warnings/action', async (req, res) => {
         wig.history.unshift(stamp('需要维修', '预警自动标记为需要维修'));
       }
 
+      const relatedChanges = [];
+      if (JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'create', 'repairs', item.id, null, item, {
+        actionLabel: '预警创建维修单',
+        relatedChanges
+      });
+
       const message = lendingBlocked
         ? '已创建维修单（假发处于借出/归还检查流程，状态将在归还后更新）'
         : '已创建维修单';
@@ -1069,19 +1466,37 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       if (!lending) return res.status(404).json({ error: '借出记录不存在' });
       if (lending.status !== '借出中') return res.status(409).json({ error: '只有借出中状态可以标记归还' });
 
+      const lendingBefore = deepClone(lending);
+      const wig = db.wigs?.find((w) => w.id === lending.wigId);
+      const wigBefore = wig ? deepClone(wig) : null;
+
       lending.status = '归还待检查';
       lending.actualReturnDate = new Date().toISOString().split('T')[0];
       lending.updatedAt = now;
       lending.history = lending.history || [];
       lending.history.unshift(stamp('提交归还', '预警中心快捷标记归还待检查'));
 
-      const wig = db.wigs?.find((w) => w.id === lending.wigId);
       if (wig) {
         wig.status = '归还待检查';
         wig.updatedAt = now;
         wig.history = wig.history || [];
         wig.history.unshift(stamp('归还待检查', '预警中心快捷标记'));
       }
+
+      const relatedChanges = [];
+      if (wig && wigBefore && JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'update', 'lendings', lending.id, lendingBefore, deepClone(lending), {
+        actionLabel: '预警标记归还',
+        relatedChanges
+      });
 
       await writeDb(db);
       return res.json({ success: true, message: '已标记为归还待检查' });
@@ -1091,10 +1506,16 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       const checklist = db.preChecklists?.find((c) => c.id === preChecklistId);
       if (!checklist) return res.status(404).json({ error: '检查任务不存在' });
 
+      const checklistBefore = deepClone(checklist);
+
       checklist.status = '待检查';
       checklist.updatedAt = now;
       checklist.history = checklist.history || [];
       checklist.history.unshift(stamp('重置待检查', '预警中心快捷操作'));
+
+      createAuditLog(db, 'update', 'preChecklists', checklist.id, checklistBefore, deepClone(checklist), {
+        actionLabel: '预警标记待检查'
+      });
 
       await writeDb(db);
       return res.json({ success: true, message: '已标记为待检查' });
@@ -1111,6 +1532,9 @@ app.post('/api/availability-warnings/action', async (req, res) => {
         result: '',
         note: ''
       }));
+
+      const wig = db.wigs?.find((w) => w.id === wigId);
+      const wigBefore = wig ? deepClone(wig) : null;
 
       const item = {
         id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
@@ -1132,12 +1556,26 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       db.preChecklists = db.preChecklists || [];
       db.preChecklists.push(item);
 
-      const wig = db.wigs?.find((w) => w.id === wigId);
       if (wig) {
         wig.history = wig.history || [];
         wig.history.unshift(stamp('演出前检查生成', '预警自动生成'));
         wig.updatedAt = now;
       }
+
+      const relatedChanges = [];
+      if (wig && wigBefore && JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'create', 'preChecklists', item.id, null, item, {
+        actionLabel: '预警生成检查任务',
+        relatedChanges
+      });
 
       await writeDb(db);
       return res.json({ success: true, item, message: '已生成检查任务' });

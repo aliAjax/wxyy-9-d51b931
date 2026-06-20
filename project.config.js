@@ -362,6 +362,14 @@ module.exports = {
         note: '备注'
       },
       defaultStatus: '可演出'
+    },
+    {
+      id: 'auditLogs',
+      label: '操作审计',
+      type: 'auditLogs',
+      collection: 'auditLogs',
+      formTitle: '操作审计记录',
+      listTitle: '审计日志'
     }
   ],
   actions: [
