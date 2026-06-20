@@ -153,5 +153,123 @@
         }
       ]
     }
+  ],
+  "consumables": [
+    {
+      "id": "consumable-seed-1",
+      "name": "勾针",
+      "stock": 12,
+      "safeStock": 10,
+      "note": "常用型号：0.5mm、0.75mm、1.0mm",
+      "createdAt": "2026-06-15T08:00:00.000Z",
+      "updatedAt": "2026-06-18T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-18T10:00:00.000Z",
+          "action": "补货",
+          "note": "补货5支"
+        },
+        {
+          "at": "2026-06-15T08:00:00.000Z",
+          "action": "创建",
+          "note": "初始化库存"
+        }
+      ]
+    },
+    {
+      "id": "consumable-seed-2",
+      "name": "蕾丝前额",
+      "stock": 3,
+      "safeStock": 5,
+      "note": "瑞士进口蕾丝，透明肤色",
+      "createdAt": "2026-06-10T08:00:00.000Z",
+      "updatedAt": "2026-06-16T14:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-16T14:00:00.000Z",
+          "action": "使用",
+          "note": "用于夜游女王假发维修"
+        },
+        {
+          "at": "2026-06-10T08:00:00.000Z",
+          "action": "创建",
+          "note": "初始化库存"
+        }
+      ]
+    },
+    {
+      "id": "consumable-seed-3",
+      "name": "真发发束",
+      "stock": 8,
+      "safeStock": 6,
+      "note": "真人发束，18寸，深棕色",
+      "createdAt": "2026-06-08T08:00:00.000Z",
+      "updatedAt": "2026-06-12T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-12T10:00:00.000Z",
+          "action": "使用",
+          "note": "补发使用2束"
+        },
+        {
+          "at": "2026-06-08T08:00:00.000Z",
+          "action": "创建",
+          "note": "初始化库存"
+        }
+      ]
+    },
+    {
+      "id": "consumable-seed-4",
+      "name": "定型发胶",
+      "stock": 2,
+      "safeStock": 4,
+      "note": "舞台专用强力定型喷雾",
+      "createdAt": "2026-06-05T08:00:00.000Z",
+      "updatedAt": "2026-06-14T09:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-14T09:00:00.000Z",
+          "action": "使用",
+          "note": "演出造型使用1瓶"
+        },
+        {
+          "at": "2026-06-05T08:00:00.000Z",
+          "action": "创建",
+          "note": "初始化库存"
+        }
+      ]
+    },
+    {
+      "id": "consumable-seed-5",
+      "name": "发网",
+      "stock": 20,
+      "safeStock": 15,
+      "note": "M/L码各半，弹力发网",
+      "createdAt": "2026-06-01T08:00:00.000Z",
+      "updatedAt": "2026-06-01T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-01T08:00:00.000Z",
+          "action": "创建",
+          "note": "初始化库存"
+        }
+      ]
+    },
+    {
+      "id": "consumables-1781914713913-3cc3a",
+      "name": "假发护理液",
+      "stock": 3,
+      "safeStock": 5,
+      "note": "",
+      "createdAt": "2026-06-20T00:18:33.913Z",
+      "updatedAt": "2026-06-20T00:18:33.913Z",
+      "history": [
+        {
+          "at": "2026-06-20T00:18:33.913Z",
+          "action": "创建",
+          "note": ""
+        }
+      ]
+    }
   ]
 }

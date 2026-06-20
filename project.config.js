@@ -12,19 +12,25 @@ module.exports = {
     '维修中': 'warn',
     '待检查': 'warn',
     '已排期': 'ok',
-    '待确认': 'warn'
+    '待确认': 'warn',
+    '库存充足': 'ok',
+    '库存不足': 'warn',
+    '库存告警': 'bad'
   },
   collections: {
     wigs: { label: '假发档案' },
     repairs: { label: '维修单' },
-    schedules: { label: '演出排期' }
+    schedules: { label: '演出排期' },
+    consumables: { label: '耗材台账' }
   },
   stats: [
     { label: '假发档案', collection: 'wigs' },
     { label: '可演出', collection: 'wigs', filter: { field: 'status', value: '可演出' } },
     { label: '演出排期', collection: 'schedules' },
     { label: '维修单', collection: 'repairs' },
-    { label: '紧急维修', collection: 'wigs', filter: { field: 'status', value: '紧急维修' } }
+    { label: '紧急维修', collection: 'wigs', filter: { field: 'status', value: '紧急维修' } },
+    { label: '耗材种类', collection: 'consumables' },
+    { label: '库存告警', collection: 'consumables', dynamic: 'lowStock' }
   ],
   views: [
     {
@@ -120,6 +126,31 @@ module.exports = {
         { label: '状态', name: 'status', type: 'select', options: ['待处理', '维修中', '待检查', '已完成'] },
         { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
         { label: '结果', name: 'result', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'consumables',
+      label: '耗材台账',
+      collection: 'consumables',
+      formTitle: '新增耗材',
+      listTitle: '耗材列表',
+      submitLabel: '保存耗材',
+      searchPlaceholder: '搜索耗材名称、备注',
+      searchFields: ['name', 'note'],
+      titleFields: ['name'],
+      summaryFields: ['note'],
+      detailFields: [
+        { label: '当前库存', name: 'stock', type: 'stock' },
+        { label: '安全库存', name: 'safeStock' },
+        { label: '库存状态', name: 'stockStatus', type: 'dynamic' }
+      ],
+      stockField: 'stock',
+      safeStockField: 'safeStock',
+      fields: [
+        { label: '耗材名称', name: 'name', required: true },
+        { label: '库存数量', name: 'stock', type: 'number', required: true, default: 0 },
+        { label: '安全库存', name: 'safeStock', type: 'number', required: true, default: 0 },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     }
   ],

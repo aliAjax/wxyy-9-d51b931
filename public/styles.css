@@ -224,6 +224,37 @@ main {
   padding: 14px;
 }
 
+.card.low-stock {
+  border-color: var(--bad);
+  background: linear-gradient(135deg, rgba(161, 61, 61, .06), #fff 40%);
+  box-shadow: 0 6px 20px rgba(161, 61, 61, .12);
+}
+
+.card.low-stock .card-head h3 {
+  color: var(--bad);
+}
+
+.card.below-safe {
+  border-color: var(--warn);
+  background: linear-gradient(135deg, rgba(163, 92, 0, .06), #fff 40%);
+  box-shadow: 0 4px 14px rgba(163, 92, 0, .1);
+}
+
+.card.below-safe .card-head h3 {
+  color: var(--warn);
+}
+
+.card.stock-empty {
+  border-color: var(--bad);
+  background: linear-gradient(135deg, rgba(161, 61, 61, .1), #fff 50%);
+  box-shadow: 0 8px 24px rgba(161, 61, 61, .18);
+}
+
+.card.stock-empty .card-head h3 {
+  color: var(--bad);
+  font-weight: 800;
+}
+
 .card-head {
   display: flex;
   justify-content: space-between;

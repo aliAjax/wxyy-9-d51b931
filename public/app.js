@@ -124,7 +124,14 @@ function setTab(tabId) {
 function renderStats() {
   return `<div class="stats">${state.config.stats.map((stat) => {
     const items = state.db[stat.collection] || [];
-    const value = stat.filter ? items.filter((item) => item[stat.filter.field] === stat.filter.value).length : items.length;
+    let value;
+    if (stat.dynamic === 'lowStock') {
+      value = items.filter((item) => isLowStock(item)).length;
+    } else if (stat.filter) {
+      value = items.filter((item) => item[stat.filter.field] === stat.filter.value).length;
+    } else {
+      value = items.length;
+    }
     return `<div class="stat"><span>${escapeHtml(stat.label)}</span><strong>${value}</strong></div>`;
   }).join('')}</div>`;
 }
@@ -135,9 +142,31 @@ function getWigStatus(wigId) {
   return { status: wig.status, tone: toneFor(wig.status) };
 }
 
+function getStockStatus(item) {
+  const stock = Number(item.stock || 0);
+  const safeStock = Number(item.safeStock || 0);
+  if (stock <= 0) return { status: '库存告警', tone: 'bad', level: 0 };
+  if (stock < safeStock * 0.5) return { status: '库存告警', tone: 'bad', level: 1 };
+  if (stock < safeStock) return { status: '库存不足', tone: 'warn', level: 2 };
+  return { status: '库存充足', tone: 'ok', level: 3 };
+}
+
+function isLowStock(item) {
+  return getStockStatus(item).level < 2;
+}
+
+function isBelowSafeStock(item) {
+  return getStockStatus(item).level < 3;
+}
+
 function renderCard(item, collection, view) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
   const statusValue = item[view.statusField];
+  const stockInfo = view.stockField ? getStockStatus(item) : null;
+  let cardClass = 'card';
+  if (stockInfo && stockInfo.level === 0) cardClass = 'card stock-empty';
+  else if (stockInfo && stockInfo.level === 1) cardClass = 'card low-stock';
+  else if (stockInfo && stockInfo.level === 2) cardClass = 'card below-safe';
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
   const details = (view.detailFields || []).map((field) => {
     let value;
@@ -146,6 +175,13 @@ function renderCard(item, collection, view) {
       const wigInfo = getWigStatus(item.wigId);
       value = wigInfo.status;
       tone = wigInfo.tone;
+    } else if (field.type === 'dynamic' && field.name === 'stockStatus') {
+      const info = getStockStatus(item);
+      value = info.status;
+      tone = info.tone;
+    } else if (field.type === 'stock') {
+      value = item[field.name];
+      tone = stockInfo?.tone || '';
     } else if (field.type === 'relation') {
       value = relationLabel(field, item[field.name]);
     } else {
@@ -166,8 +202,8 @@ function renderCard(item, collection, view) {
     const wigInfo = getWigStatus(item.wigId);
     wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
   }
-  return `<article class="card">
-    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, toneFor(statusValue)) : ''}</div>
+  return `<article class="${cardClass}">
+    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, toneFor(statusValue)) : (stockInfo ? pill(stockInfo.status, stockInfo.tone) : '')}</div>
     ${relation}
     ${wigStatusBadge}
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
@@ -187,6 +223,9 @@ function renderList(view) {
   }
   if (status) {
     items = items.filter((item) => item[view.statusField] === status);
+  }
+  if (view.stockField) {
+    items.sort((a, b) => getStockStatus(a).level - getStockStatus(b).level);
   }
   return items.length ? items.map((item) => renderCard(item, collection, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
 }
