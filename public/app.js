@@ -92,7 +92,15 @@ function formField(field) {
     return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${field.options.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}</select></label>`;
   }
   if (field.type === 'relation') {
-    const items = state.db[field.collection] || [];
+    let items = state.db[field.collection] || [];
+    if (field.filterByStatus) {
+      items = items.filter((item) => item.status === field.filterByStatus);
+    }
+    if (field.filterWithoutReview) {
+      const reviews = state.db.repairReviews || [];
+      const reviewedIds = new Set(reviews.map((r) => r.repairId));
+      items = items.filter((item) => !reviewedIds.has(item.id));
+    }
     return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${optionList(items, field.labelFields)}</select></label>`;
   }
   return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" ${value} ${required}></label>`;
@@ -100,6 +108,13 @@ function formField(field) {
 
 function pill(value, tone = '') {
   return `<span class="pill ${tone}">${escapeHtml(value || '-')}</span>`;
+}
+
+function scoreStars(score) {
+  const num = Number(score) || 0;
+  const full = Math.min(Math.max(num, 0), 5);
+  const empty = 5 - full;
+  return `<span class="score-stars" title="${full} 分">${'★'.repeat(full)}${'☆'.repeat(empty)}</span>`;
 }
 
 function toneFor(value) {
@@ -135,12 +150,21 @@ function setTab(tabId) {
   $$('.view').forEach((view) => view.classList.toggle('active', view.id === tabId));
 }
 
+function getPendingReviewCount() {
+  const repairs = state.db.repairs || [];
+  const reviews = state.db.repairReviews || [];
+  const reviewedRepairIds = new Set(reviews.map((r) => r.repairId));
+  return repairs.filter((r) => r.status === '已完成' && !reviewedRepairIds.has(r.id)).length;
+}
+
 function renderStats() {
   return `<div class="stats">${state.config.stats.map((stat) => {
     const items = state.db[stat.collection] || [];
     let value;
     if (stat.dynamic === 'lowStock') {
       value = items.filter((item) => isLowStock(item)).length;
+    } else if (stat.dynamic === 'pendingReview') {
+      value = getPendingReviewCount();
     } else if (stat.filter) {
       value = items.filter((item) => item[stat.filter.field] === stat.filter.value).length;
     } else {
@@ -202,6 +226,7 @@ function renderCard(item, collection, view) {
   const details = (view.detailFields || []).map((field) => {
     let value;
     let tone = '';
+    let isHtml = false;
     if (field.type === 'dynamic' && field.name === 'wigStatus') {
       const wigInfo = getWigStatus(item.wigId);
       value = wigInfo.status;
@@ -221,10 +246,20 @@ function renderCard(item, collection, view) {
     } else if (field.type === 'stock') {
       value = item[field.name];
       tone = stockInfo?.tone || '';
+    } else if (field.type === 'score') {
+      value = scoreStars(item[field.name]);
+      isHtml = true;
+    } else if (field.type === 'pill') {
+      const pillValue = item[field.name];
+      tone = pillValue === '是' ? 'bad' : 'ok';
+      value = pillValue || '-';
     } else if (field.type === 'relation') {
       value = relationLabel(field, item[field.name]);
     } else {
       value = item[field.name];
+    }
+    if (isHtml) {
+      return `<div>${escapeHtml(field.label)}<br>${value}</div>`;
     }
     if (tone) {
       const displayValue = value === 0 ? '0' : (value || '-');
@@ -233,6 +268,34 @@ function renderCard(item, collection, view) {
     return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
   }).join('');
   const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
+
+  let reviewSummary = '';
+  if (collection === 'repairs') {
+    const review = getReviewForRepair(item.id);
+    if (review) {
+      const scoreHtml = scoreStars(review.timeScore);
+      const affectsTone = review.affectsPerformance === '是' ? 'bad' : 'ok';
+      reviewSummary = `
+        <div class="repair-review-summary">
+          <div class="review-summary-header">
+            <span class="pill ok">已复盘</span>
+            <span class="review-score">${scoreHtml}</span>
+            <span class="pill ${affectsTone}">影响演出：${review.affectsPerformance}</span>
+          </div>
+          ${review.conclusion ? `<div class="review-conclusion-preview"><strong>结论：</strong>${escapeHtml(review.conclusion)}</div>` : ''}
+          ${review.reviewer ? `<div class="review-reviewer">复盘人：${escapeHtml(review.reviewer)}</div>` : ''}
+        </div>
+      `;
+    } else if (item.status === '已完成') {
+      reviewSummary = `
+        <div class="repair-review-summary pending">
+          <span class="pill warn">待复盘</span>
+          <span class="review-pending-hint">该维修单已完成，请到质量复盘模块登记复盘结论</span>
+        </div>
+      `;
+    }
+  }
+
   const actions = state.config.actions
     .filter((action) => action.collection === collection)
     .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
@@ -247,6 +310,7 @@ function renderCard(item, collection, view) {
     ${relation}
     ${wigStatusBadge}
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
+    ${reviewSummary}
     ${details ? `<div class="detail${view.detailClass ? ' ' + view.detailClass : ''}">${details}</div>` : ''}
     ${actions ? `<div class="actions">${actions}</div>` : ''}
     ${historyHtml(item)}
@@ -1014,6 +1078,152 @@ function renderLendingView(view) {
   </section>`;
 }
 
+function getReviewForRepair(repairId) {
+  return (state.db.repairReviews || []).find((r) => r.repairId === repairId);
+}
+
+function renderRepairReviewCard(item, view) {
+  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+  let statusValue = item[view.statusField];
+  let statusTone = toneFor(statusValue);
+  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
+  const details = (view.detailFields || []).map((field) => {
+    let value;
+    let tone = '';
+    let isHtml = false;
+    if (field.type === 'dynamic' && field.name === 'wigStatus') {
+      const wigInfo = getWigStatus(item.wigId);
+      value = wigInfo.status;
+      tone = wigInfo.tone;
+    } else if (field.type === 'score') {
+      value = scoreStars(item[field.name]);
+      isHtml = true;
+    } else if (field.type === 'pill') {
+      const pillValue = item[field.name];
+      tone = pillValue === '是' ? 'bad' : 'ok';
+      value = pillValue || '-';
+    } else if (field.type === 'relation') {
+      value = relationLabel(field, item[field.name]);
+    } else {
+      value = item[field.name];
+    }
+    if (isHtml) {
+      return `<div>${escapeHtml(field.label)}<br>${value}</div>`;
+    }
+    if (tone) {
+      const displayValue = value || '-';
+      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
+    }
+    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+  }).join('');
+
+  let wigStatusBadge = '';
+  if (view.showWigStatus && item.wigId) {
+    const wigInfo = getWigStatus(item.wigId);
+    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+  }
+
+  const conclusionHtml = item.conclusion ? `<div class="review-conclusion"><strong>复盘结论：</strong>${escapeHtml(item.conclusion)}</div>` : '';
+  const reworkReasonHtml = item.reworkReason ? `<div class="review-rework-reason"><strong>返工原因：</strong>${escapeHtml(item.reworkReason)}</div>` : '';
+  const reviewerHtml = item.reviewer ? `<div class="meta">复盘人：${escapeHtml(item.reviewer)}</div>` : '';
+  const reviewedAtHtml = item.reviewedAt ? `<div class="meta">复盘时间：${escapeHtml(fmtDate(item.reviewedAt))}</div>` : '';
+
+  return `<article class="card review-card">
+    <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : ''}</div>
+    ${relation}
+    ${wigStatusBadge}
+    ${reviewerHtml}
+    ${reviewedAtHtml}
+    ${conclusionHtml}
+    ${reworkReasonHtml}
+    ${details ? `<div class="detail">${details}</div>` : ''}
+    <div class="inline-actions">
+      <button class="ghost" data-review-edit="${item.id}">查看/编辑</button>
+    </div>
+    ${historyHtml(item)}
+    <div class="review-form-panel" id="review-form-${item.id}" style="display:none;">
+      <h4>编辑复盘记录</h4>
+      <div class="review-form-items">
+        <label class="wide">复盘结论<textarea name="conclusion" data-review-field="conclusion">${escapeHtml(item.conclusion || '')}</textarea></label>
+        <label class="wide">返工原因<textarea name="reworkReason" data-review-field="reworkReason">${escapeHtml(item.reworkReason || '')}</textarea></label>
+        <label>耗时评分
+          <select name="timeScore" data-review-field="timeScore">
+            ${['5', '4', '3', '2', '1'].map((s) => `<option value="${s}" ${item.timeScore === s ? 'selected' : ''}>${s} 分</option>`).join('')}
+          </select>
+        </label>
+        <label>是否影响演出
+          <select name="affectsPerformance" data-review-field="affectsPerformance">
+            <option value="否" ${item.affectsPerformance === '否' ? 'selected' : ''}>否</option>
+            <option value="是" ${item.affectsPerformance === '是' ? 'selected' : ''}>是</option>
+          </select>
+        </label>
+        <label>复盘人<input type="text" name="reviewer" data-review-field="reviewer" value="${escapeHtml(item.reviewer || '')}"></label>
+        <label class="wide">备注<textarea name="note" data-review-field="note">${escapeHtml(item.note || '')}</textarea></label>
+      </div>
+      <div class="actions">
+        <button class="secondary" data-review-cancel="${item.id}">取消</button>
+        <button data-review-save="${item.id}">保存修改</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderRepairReviewList(view) {
+  const query = $(`#search-${view.id}`)?.value.trim() || '';
+  const status = $(`#status-${view.id}`)?.value || '';
+  let items = [...(state.db[view.collection] || [])];
+
+  items.sort((a, b) => {
+    const dateA = new Date(a.reviewedAt || a.createdAt || 0);
+    const dateB = new Date(b.reviewedAt || b.createdAt || 0);
+    return dateB - dateA;
+  });
+
+  if (query) {
+    items = items.filter((item) => view.searchFields.some((field) => {
+      const value = String(item[field] || '');
+      return value.includes(query);
+    }));
+  }
+  if (status) {
+    items = items.filter((item) => item[view.statusField] === status);
+  }
+  return items.length ? items.map((item) => renderRepairReviewCard(item, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
+}
+
+function renderRepairReviewView(view) {
+  const statusOptions = view.statusOptions || [];
+  const pendingCount = getPendingReviewCount();
+  return `<section class="view" id="${view.id}">
+    <div class="grid">
+      <div class="panel">
+        <h2>${escapeHtml(view.formTitle)}</h2>
+        ${pendingCount > 0 ? `<div class="pending-review-hint">还有 <span class="pill warn">${pendingCount}</span> 个已完成的维修单等待复盘</div>` : `<div class="pending-review-hint all-reviewed">所有已完成维修单都已复盘，做得好！ <span class="pill ok">✓</span></div>`}
+        <form class="single-create-form" data-create="repair-reviews" data-view="${view.id}">
+          <div class="form-grid">${view.fields.map((field) => {
+            if (field.name === 'repairId') {
+              return formField({ ...field, filterWithoutReview: true });
+            }
+            return formField(field);
+          }).join('')}</div>
+          <div class="actions"><button>${escapeHtml(view.submitLabel || '保存')}</button></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>${escapeHtml(view.listTitle)}</h2>
+        <div class="toolbar">
+          <input id="search-${view.id}" placeholder="${escapeHtml(view.searchPlaceholder || '搜索')}">
+          <select id="status-${view.id}">
+            <option value="">全部状态</option>
+            ${statusOptions.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="list" id="list-${view.id}">${renderRepairReviewList(view)}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
@@ -1024,6 +1234,7 @@ function render() {
     if (view.type === 'dispatchBoard') return renderDispatchBoardView(view);
     if (view.type === 'wigImport') return renderWigImportView(view);
     if (view.type === 'lending') return renderLendingView(view);
+    if (view.type === 'repairReview') return renderRepairReviewView(view);
     return renderCrudView(view);
   }).join('');
   setTab(state.activeTab || state.config.views[0].id);
@@ -1385,6 +1596,48 @@ document.addEventListener('click', async (event) => {
       toast(error.message);
     }
   }
+
+  const reviewEdit = event.target.closest('[data-review-edit]');
+  const reviewCancel = event.target.closest('[data-review-cancel]');
+  const reviewSave = event.target.closest('[data-review-save]');
+
+  if (reviewEdit) {
+    const id = reviewEdit.dataset.reviewEdit;
+    const panel = document.getElementById(`review-form-${id}`);
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+  if (reviewCancel) {
+    const id = reviewCancel.dataset.reviewCancel;
+    const panel = document.getElementById(`review-form-${id}`);
+    if (panel) panel.style.display = 'none';
+  }
+  if (reviewSave) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = reviewSave.dataset.reviewSave;
+    const card = reviewSave.closest('.review-card');
+    if (!card) return;
+
+    const payload = {};
+    const fieldEls = card.querySelectorAll('[data-review-field]');
+    fieldEls.forEach((el) => {
+      const field = el.dataset.reviewField;
+      payload[field] = el.value;
+    });
+
+    try {
+      await api(`/api/repair-reviews/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      await load();
+      toast('复盘记录已更新');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
 });
 
 document.addEventListener('input', (event) => {
@@ -1394,6 +1647,8 @@ document.addEventListener('input', (event) => {
       $(`#list-${view.id}`).innerHTML = renderPreChecklistList(view);
     } else if (view.type === 'lending') {
       $(`#list-${view.id}`).innerHTML = renderLendingList(view);
+    } else if (view.type === 'repairReview') {
+      $(`#list-${view.id}`).innerHTML = renderRepairReviewList(view);
     } else {
       $(`#list-${view.id}`).innerHTML = renderList(view);
     }
@@ -1429,7 +1684,8 @@ document.addEventListener('submit', async (event) => {
     payload.checkedAt = '';
     if (!payload.status) payload.status = '借出中';
   }
-  await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(payload) });
+  const createPath = form.dataset.create;
+  await api(`/api/${createPath}`, { method: 'POST', body: JSON.stringify(payload) });
   form.reset();
   await load();
   toast('已保存');

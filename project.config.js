@@ -22,11 +22,14 @@ module.exports = {
     '已归还': 'ok',
     '归还待检查': 'warn',
     '归还检查通过': 'ok',
-    '归还检查不通过': 'bad'
+    '归还检查不通过': 'bad',
+    '已复盘': 'ok',
+    '待复盘': 'warn'
   },
   collections: {
     wigs: { label: '假发档案' },
     repairs: { label: '维修单' },
+    repairReviews: { label: '维修质量复盘' },
     schedules: { label: '演出排期' },
     consumables: { label: '耗材台账' },
     staff: { label: '服化团队' },
@@ -58,7 +61,9 @@ module.exports = {
     { label: '检查通过', collection: 'preChecklists', filter: { field: 'status', value: '检查通过' } },
     { label: '检查不通过', collection: 'preChecklists', filter: { field: 'status', value: '检查不通过' } },
     { label: '借出中', collection: 'lendings', filter: { field: 'status', value: '借出中' } },
-    { label: '归还待检查', collection: 'lendings', filter: { field: 'status', value: '归还待检查' } }
+    { label: '归还待检查', collection: 'lendings', filter: { field: 'status', value: '归还待检查' } },
+    { label: '维修复盘', collection: 'repairReviews' },
+    { label: '待复盘维修', collection: 'repairs', dynamic: 'pendingReview' }
   ],
   views: [
     {
@@ -223,6 +228,38 @@ module.exports = {
         { label: '状态', name: 'status', type: 'select', options: ['待处理', '维修中', '待检查', '已完成'] },
         { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
         { label: '结果', name: 'result', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'repairReviews',
+      label: '维修质量复盘',
+      collection: 'repairReviews',
+      type: 'repairReview',
+      formTitle: '新增复盘记录',
+      listTitle: '复盘列表',
+      submitLabel: '保存复盘',
+      searchPlaceholder: '搜索复盘结论、返工原因',
+      searchFields: ['conclusion', 'reworkReason', 'reviewer'],
+      statusField: 'status',
+      statusOptions: ['已复盘'],
+      titleFields: ['conclusion'],
+      relation: { collection: 'repairs', localKey: 'repairId', labelFields: ['type'] },
+      summaryFields: ['reworkReason'],
+      detailFields: [
+        { label: '关联维修', name: 'repairId', type: 'relation', collection: 'repairs', labelFields: ['type'] },
+        { label: '耗时评分', name: 'timeScore', type: 'score' },
+        { label: '影响演出', name: 'affectsPerformance', type: 'pill' },
+        { label: '复盘人', name: 'reviewer' }
+      ],
+      showWigStatus: true,
+      fields: [
+        { label: '维修单', name: 'repairId', type: 'relation', collection: 'repairs', labelFields: ['type', 'details'], required: true, wide: true, filterByStatus: '已完成' },
+        { label: '复盘结论', name: 'conclusion', type: 'textarea', required: true, wide: true },
+        { label: '返工原因', name: 'reworkReason', type: 'textarea', wide: true },
+        { label: '耗时评分', name: 'timeScore', type: 'select', options: ['5', '4', '3', '2', '1'], required: true },
+        { label: '是否影响演出', name: 'affectsPerformance', type: 'select', options: ['否', '是'], required: true },
+        { label: '复盘人', name: 'reviewer', required: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     },
     {

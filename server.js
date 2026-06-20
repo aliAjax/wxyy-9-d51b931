@@ -191,6 +191,81 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
   res.json(lending);
 });
 
+app.post('/api/repair-reviews', async (req, res) => {
+  const db = await readDb();
+  const body = req.body || {};
+
+  const repair = db.repairs?.find((r) => r.id === body.repairId);
+  if (!repair) return res.status(404).json({ error: '维修单不存在' });
+
+  if (repair.status !== '已完成') {
+    return res.status(409).json({ error: '只有已完成的维修单才能创建复盘记录' });
+  }
+
+  const existingReview = (db.repairReviews || []).find((r) => r.repairId === body.repairId);
+  if (existingReview) {
+    return res.status(409).json({ error: '该维修单已有复盘记录，不能重复创建' });
+  }
+
+  const wig = db.wigs?.find((w) => w.id === repair.wigId);
+
+  const now = new Date().toISOString();
+  const item = {
+    id: `repairReview-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+    repairId: body.repairId,
+    wigId: repair.wigId,
+    conclusion: body.conclusion || '',
+    reworkReason: body.reworkReason || '',
+    timeScore: body.timeScore || '3',
+    affectsPerformance: body.affectsPerformance || '否',
+    reviewer: body.reviewer || '',
+    reviewedAt: now,
+    status: '已复盘',
+    note: body.note || '',
+    createdAt: now,
+    updatedAt: now,
+    history: [stamp('创建复盘', body.conclusion ? `结论：${body.conclusion}` : '')]
+  };
+
+  db.repairReviews = db.repairReviews || [];
+  db.repairReviews.push(item);
+
+  if (wig) {
+    wig.history = wig.history || [];
+    wig.history.unshift(stamp('维修复盘', `维修类型：${repair.type}，复盘人：${body.reviewer || '未填写'}`));
+    wig.updatedAt = now;
+  }
+
+  await writeDb(db);
+  res.status(201).json(item);
+});
+
+app.patch('/api/repair-reviews/:id', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+  const body = req.body || {};
+
+  const review = db.repairReviews?.find((r) => r.id === id);
+  if (!review) return res.status(404).json({ error: '复盘记录不存在' });
+
+  const now = new Date().toISOString();
+  const oldConclusion = review.conclusion;
+
+  if (body.conclusion !== undefined) review.conclusion = body.conclusion;
+  if (body.reworkReason !== undefined) review.reworkReason = body.reworkReason;
+  if (body.timeScore !== undefined) review.timeScore = body.timeScore;
+  if (body.affectsPerformance !== undefined) review.affectsPerformance = body.affectsPerformance;
+  if (body.reviewer !== undefined) review.reviewer = body.reviewer;
+  if (body.note !== undefined) review.note = body.note;
+
+  review.updatedAt = now;
+  review.history = review.history || [];
+  review.history.unshift(stamp('更新复盘', body.conclusion && body.conclusion !== oldConclusion ? `结论更新：${body.conclusion}` : '复盘信息已更新'));
+
+  await writeDb(db);
+  res.json(review);
+});
+
 app.post('/api/:collection', async (req, res) => {
   const db = await readDb();
   const { collection } = req.params;

@@ -461,6 +461,78 @@
           "note": "刘海加固任务创建"
         }
       ]
+    },
+    {
+      "id": "repair-seed-12",
+      "wigId": "wig-seed-1",
+      "type": "补发",
+      "handler": "staff-seed-1",
+      "status": "已完成",
+      "dueDate": "2026-06-15",
+      "details": "补发右侧鬓角并重新压发际线",
+      "result": "补发完成，发际线贴合度良好",
+      "createdAt": "2026-06-10T09:00:00.000Z",
+      "updatedAt": "2026-06-14T16:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-14T16:00:00.000Z",
+          "action": "已完成",
+          "note": "补发完成，验收通过"
+        },
+        {
+          "at": "2026-06-10T09:00:00.000Z",
+          "action": "创建",
+          "note": "鬓角补发任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-13",
+      "wigId": "wig-seed-3",
+      "type": "定型",
+      "handler": "staff-seed-2",
+      "status": "已完成",
+      "dueDate": "2026-06-18",
+      "details": "重新整体定型，保持渐变层次",
+      "result": "定型完成，造型保持良好",
+      "createdAt": "2026-06-15T10:00:00.000Z",
+      "updatedAt": "2026-06-17T14:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-17T14:00:00.000Z",
+          "action": "已完成",
+          "note": "定型完成，检查通过"
+        },
+        {
+          "at": "2026-06-15T10:00:00.000Z",
+          "action": "创建",
+          "note": "整体定型任务创建"
+        }
+      ]
+    },
+    {
+      "id": "repair-seed-14",
+      "wigId": "wig-seed-2",
+      "type": "清洗",
+      "handler": "staff-seed-2",
+      "status": "已完成",
+      "dueDate": "2026-06-10",
+      "details": "演出后深度清洗并补充营养液",
+      "result": "清洗完成，发丝柔顺有光泽",
+      "createdAt": "2026-06-08T08:00:00.000Z",
+      "updatedAt": "2026-06-09T15:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-09T15:00:00.000Z",
+          "action": "已完成",
+          "note": "清洗保养完成"
+        },
+        {
+          "at": "2026-06-08T08:00:00.000Z",
+          "action": "创建",
+          "note": "深度清洗任务创建"
+        }
+      ]
     }
   ],
   "schedules": [
@@ -1195,6 +1267,52 @@
           "at": "2026-06-20T03:35:06.115Z",
           "action": "登记借出",
           "note": "测试检查不通过"
+        }
+      ]
+    }
+  ],
+  "repairReviews": [
+    {
+      "id": "review-seed-1",
+      "repairId": "repair-seed-12",
+      "wigId": "wig-seed-1",
+      "conclusion": "补发质量良好，发际线贴合自然，整体造型符合演出要求",
+      "reworkReason": "首次补发量不足，二次补添后达到预期效果",
+      "timeScore": "4",
+      "affectsPerformance": "否",
+      "reviewer": "林岚",
+      "reviewedAt": "2026-06-14T16:30:00.000Z",
+      "status": "已复盘",
+      "note": "建议后续补发前先评估发量需求，避免二次返工",
+      "createdAt": "2026-06-14T16:30:00.000Z",
+      "updatedAt": "2026-06-14T16:30:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-14T16:30:00.000Z",
+          "action": "创建复盘",
+          "note": "结论：补发质量良好，发际线贴合自然，整体造型符合演出要求"
+        }
+      ]
+    },
+    {
+      "id": "review-seed-2",
+      "repairId": "repair-seed-13",
+      "wigId": "wig-seed-3",
+      "conclusion": "定型效果出色，渐变层次保持完好，演出试戴效果理想",
+      "reworkReason": "",
+      "timeScore": "5",
+      "affectsPerformance": "否",
+      "reviewer": "赵敏",
+      "reviewedAt": "2026-06-17T14:30:00.000Z",
+      "status": "已复盘",
+      "note": "本次定型一次成功，可作为标准作业流程参考",
+      "createdAt": "2026-06-17T14:30:00.000Z",
+      "updatedAt": "2026-06-17T14:30:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-17T14:30:00.000Z",
+          "action": "创建复盘",
+          "note": "结论：定型效果出色，渐变层次保持完好，演出试戴效果理想"
         }
       ]
     }
