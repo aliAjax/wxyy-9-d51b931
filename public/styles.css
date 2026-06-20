@@ -1410,6 +1410,19 @@ td.import-col-num {
   min-width: 0;
 }
 
+.dashboard-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-date-range {
+  flex: 1;
+  min-width: 0;
+}
+
 .availability-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1629,6 +1642,25 @@ td.import-col-num {
   }
 
   .warnings-date-filter .date-reset-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dashboard-date-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-date-range {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-date-range .date-range-label {
+    width: 100%;
+  }
+
+  .dashboard-date-range .date-reset-btn {
     width: 100%;
     justify-content: center;
   }

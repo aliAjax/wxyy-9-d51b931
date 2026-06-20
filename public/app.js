@@ -6,7 +6,9 @@ const state = {
   availabilityWarnings: { warnings: [], stats: {} },
   auditLogs: { data: [], total: 0, loading: false },
   activeTab: '',
-  _warningsDebounceTimer: null
+  dashboardDateFilter: { startDate: '', endDate: '' },
+  _warningsDebounceTimer: null,
+  _dashboardDebounceTimer: null
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -217,8 +219,19 @@ function getPendingReviewCount() {
 }
 
 function renderStats() {
+  const { startDate, endDate } = state.dashboardDateFilter || {};
+  const hasDateFilter = !!(startDate || endDate);
+  const dateFieldMap = {
+    schedules: 'performanceDate',
+    preChecklists: 'performanceDate'
+  };
+
   return `<div class="stats">${state.config.stats.map((stat) => {
-    const items = state.db[stat.collection] || [];
+    let items = state.db[stat.collection] || [];
+    const dateField = dateFieldMap[stat.collection];
+    if (hasDateFilter && dateField) {
+      items = filterByDateRange(items, dateField, startDate, endDate);
+    }
     let value;
     if (stat.dynamic === 'lowStock') {
       value = items.filter((item) => isLowStock(item)).length;
@@ -229,7 +242,8 @@ function renderStats() {
     } else {
       value = items.length;
     }
-    return `<div class="stat"><span>${escapeHtml(stat.label)}</span><strong>${value}</strong></div>`;
+    const labelSuffix = (hasDateFilter && dateField) ? '（日期筛选）' : '';
+    return `<div class="stat"><span>${escapeHtml(stat.label)}${escapeHtml(labelSuffix)}</span><strong>${value}</strong></div>`;
   }).join('')}</div>`;
 }
 
@@ -451,14 +465,46 @@ function renderList(view) {
 }
 
 function renderDashboardView(view) {
+  const { startDate, endDate } = state.dashboardDateFilter || {};
+  const hasDateFilter = !!(startDate || endDate);
   const source = view.focus;
+  const dateFieldMap = {
+    schedules: 'performanceDate',
+    preChecklists: 'performanceDate'
+  };
+
   let items = [...(state.db[source.collection] || [])];
   if (source.field) items = items.filter((item) => source.values.includes(item[source.field]));
+
+  const sourceDateField = dateFieldMap[source.collection];
+  if (hasDateFilter && sourceDateField) {
+    items = filterByDateRange(items, sourceDateField, startDate, endDate);
+  }
+
   items = items.slice(0, source.limit || 8);
   const cardView = state.config.views.find((entry) => entry.collection === source.collection) || source;
+
+  const dateFilterInfo = hasDateFilter
+    ? `<span class="pill accent">日期筛选中 · 开始：${startDate || '不限'} 至 ${endDate || '不限'}</span>`
+    : '';
+
   return `<section class="view active" id="${view.id}">
+    <div class="dashboard-date-filter">
+      <div class="date-range-filter dashboard-date-range">
+        <label class="date-range-label">
+          <span>开始日期</span>
+          <input type="date" id="dashboard-date-start" class="date-filter-input" value="${escapeHtml(startDate)}">
+        </label>
+        <label class="date-range-label">
+          <span>结束日期</span>
+          <input type="date" id="dashboard-date-end" class="date-filter-input" value="${escapeHtml(endDate)}">
+        </label>
+        <button class="ghost date-reset-btn" id="dashboard-date-reset" type="button">重置日期</button>
+      </div>
+      ${dateFilterInfo}
+    </div>
     ${renderStats()}
-    <div class="panel"><h2>${escapeHtml(view.focusTitle)}</h2><div class="list">${items.length ? items.map((item) => renderCard(item, source.collection, cardView)).join('') : '<div class="empty">暂无重点事项</div>'}</div></div>
+    <div class="panel"><h2>${escapeHtml(view.focusTitle)}${hasDateFilter && sourceDateField ? '（日期筛选）' : ''}</h2><div class="list">${items.length ? items.map((item) => renderCard(item, source.collection, cardView)).join('') : `<div class="empty">${hasDateFilter ? '日期范围内暂无重点事项' : '暂无重点事项'}</div>`}</div></div>
   </section>`;
 }
 
@@ -1852,6 +1898,22 @@ document.addEventListener('click', async (event) => {
     });
   }
 
+  const dashboardDateResetBtn = event.target.closest('#dashboard-date-reset');
+  if (dashboardDateResetBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startInput = $('#dashboard-date-start');
+    const endInput = $('#dashboard-date-end');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    if (state._dashboardDebounceTimer) {
+      clearTimeout(state._dashboardDebounceTimer);
+    }
+    state.dashboardDateFilter = { startDate: '', endDate: '' };
+    render();
+    setTab(state.activeTab);
+  }
+
   const reassignBtn = event.target.closest('[data-reassign]');
   if (reassignBtn) {
     event.preventDefault();
@@ -2217,6 +2279,22 @@ document.addEventListener('input', (event) => {
         toast(error.message || '加载预警数据失败');
       }
     }, 500);
+  }
+
+  if (event.target.id === 'dashboard-date-start' || event.target.id === 'dashboard-date-end') {
+    if (state._dashboardDebounceTimer) {
+      clearTimeout(state._dashboardDebounceTimer);
+    }
+    state._dashboardDebounceTimer = setTimeout(() => {
+      const startDate = $('#dashboard-date-start')?.value || '';
+      const endDate = $('#dashboard-date-end')?.value || '';
+      state.dashboardDateFilter = { startDate, endDate };
+      const dashboardView = state.config.views.find((v) => v.type === 'dashboard');
+      if (dashboardView && state.activeTab === dashboardView.id) {
+        render();
+        setTab(state.activeTab);
+      }
+    }, 300);
   }
 });
 
