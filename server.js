@@ -139,6 +139,10 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
     if (checker) lending.checker = checker;
 
     if (status && status !== prevStatus) {
+      if ((status === '归还检查通过' || status === '归还检查不通过') && prevStatus !== '归还待检查') {
+        return res.status(409).json({ error: '只有归还待检查状态可以执行归还检查' });
+      }
+
       if (status === '归还检查通过') {
         lending.status = status;
         lending.actualReturnDate = new Date().toISOString().split('T')[0];
