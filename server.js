@@ -148,10 +148,20 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
         lending.actualReturnDate = new Date().toISOString().split('T')[0];
         lending.checkedAt = now;
         if (wig) {
-          wig.status = '可演出';
+          const activeRepairs = (db.repairs || []).filter(
+            (r) => r.wigId === wig.id && ['待处理', '维修中', '待检查'].includes(r.status)
+          );
+          wig.status = activeRepairs.length > 0
+            ? (wig.status === '紧急维修' ? '紧急维修' : '需要维修')
+            : '可演出';
           wig.updatedAt = now;
           wig.history = wig.history || [];
-          wig.history.unshift(stamp('归还检查通过', '归还检查通过，恢复为可演出状态'));
+          wig.history.unshift(stamp(
+            '归还检查通过',
+            activeRepairs.length > 0
+              ? `归还检查通过，但仍有 ${activeRepairs.length} 个未完成维修单，保持维修状态`
+              : '归还检查通过，恢复为可演出状态'
+          ));
         }
         lending.history = lending.history || [];
         lending.history.unshift(stamp('归还检查通过', checkFindings || '检查合格，已归还'));
