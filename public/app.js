@@ -1260,12 +1260,14 @@ function renderWigImportView(view) {
     csvText: '',
     parsedRows: [],
     validatedRows: [],
+    duplicateInfo: [],
     importResult: null
   };
 
   const hasParsedData = importState.validatedRows && importState.validatedRows.length > 0;
   const validCount = importState.validatedRows?.filter((r) => r.isValid).length || 0;
   const invalidCount = importState.validatedRows?.filter((r) => !r.isValid).length || 0;
+  const duplicateCount = importState.duplicateInfo?.filter((d) => d.isDuplicate).length || 0;
 
   let previewTable = '';
   if (hasParsedData) {
@@ -1276,41 +1278,84 @@ function renderWigImportView(view) {
         <div class="import-preview-stats">
           <span class="pill">共 ${importState.validatedRows.length} 行</span>
           <span class="pill ok">${validCount} 行有效</span>
-          <span class="pill ${invalidCount > 0 ? 'bad' : ''}">${invalidCount} 行缺失</span>
+          ${invalidCount > 0 ? `<span class="pill bad">${invalidCount} 行缺失</span>` : ''}
+          ${duplicateCount > 0 ? `<span class="pill warn">${duplicateCount} 行疑似重复</span>` : ''}
         </div>
       </div>
+      ${duplicateCount > 0 ? `
+        <div class="import-duplicate-batch">
+          <span class="import-duplicate-batch-label">批量设置重复行处理方式：</span>
+          <select id="import-batch-mode">
+            <option value="">逐行选择</option>
+            <option value="skip">全部跳过</option>
+            <option value="overwrite">全部覆盖（备注和状态）</option>
+            <option value="new">全部作为新档案</option>
+          </select>
+        </div>
+      ` : ''}
       <div class="import-table-wrapper">
         <table class="import-preview-table">
           <thead>
             <tr>
               <th class="import-col-num">行号</th>
               ${displayFields.map((f) => `<th class="${requiredFields.includes(f) ? 'required-field' : ''}">${escapeHtml(fieldLabels[f] || f)}${requiredFields.includes(f) ? ' *' : ''}</th>`).join('')}
+              ${duplicateCount > 0 ? '<th>重复</th>' : ''}
               <th>状态</th>
             </tr>
           </thead>
           <tbody>
-            ${importState.validatedRows.map((row) => `
-              <tr class="${row.isValid ? 'import-row-valid' : 'import-row-invalid'}">
+            ${importState.validatedRows.map((row, idx) => {
+              const dupInfo = importState.duplicateInfo?.[idx];
+              const isDuplicate = dupInfo?.isDuplicate;
+              let rowClass = row.isValid ? 'import-row-valid' : 'import-row-invalid';
+              if (isDuplicate) rowClass += ' import-row-duplicate';
+
+              return `
+              <tr class="${rowClass}">
                 <td class="import-col-num">${row.rowIndex}</td>
                 ${displayFields.map((f) => {
                   const isMissing = row.missingFields.includes(f);
                   return `<td class="${isMissing ? 'import-cell-missing' : ''}">${escapeHtml(row.data[f] || '-')}</td>`;
                 }).join('')}
+                ${duplicateCount > 0 ? `<td>${
+                  isDuplicate
+                    ? `<span class="pill warn" title="匹配已有档案：${escapeHtml(dupInfo.match?.id || '')}">重复</span>`
+                    : ''
+                }</td>` : ''}
                 <td>
-                  ${row.isValid
-                    ? '<span class="pill ok">有效</span>'
-                    : `<span class="pill bad">缺少：${row.missingFields.map((f) => escapeHtml(fieldLabels[f] || f)).join('、')}</span>`
+                  ${!row.isValid
+                    ? `<span class="pill bad">缺少：${row.missingFields.map((f) => escapeHtml(fieldLabels[f] || f)).join('、')}</span>`
+                    : isDuplicate
+                      ? `<select class="import-mode-select" data-import-mode-idx="${idx}">
+                          <option value="skip">跳过</option>
+                          <option value="overwrite">覆盖备注/状态</option>
+                          <option value="new">作为新档案</option>
+                        </select>`
+                      : '<span class="pill ok">有效</span>'
                   }
                 </td>
               </tr>
-            `).join('')}
+              ${isDuplicate ? `
+                <tr class="import-duplicate-detail">
+                  <td colspan="${displayFields.length + 2 + (duplicateCount > 0 ? 1 : 0)}">
+                    <div class="import-duplicate-match-info">
+                      <span class="import-duplicate-match-label">已有档案：</span>
+                      <span class="import-duplicate-match-id">${escapeHtml(dupInfo.match?.id || '')}</span>
+                      <span class="import-duplicate-match-field">状态：<strong>${escapeHtml(dupInfo.match?.status || '')}</strong></span>
+                      <span class="import-duplicate-match-field">备注：<strong>${escapeHtml(dupInfo.match?.note || '无')}${''}</strong></span>
+                    </div>
+                  </td>
+                </tr>
+              ` : ''}
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
       <div class="import-actions">
         <button class="secondary" id="import-clear-btn">清空重新粘贴</button>
         <button class="danger" id="import-confirm-btn" ${validCount === 0 ? 'disabled' : ''}>
-          确认导入（${validCount} 条有效数据）
+          确认导入（${validCount} 条有效数据${duplicateCount > 0 ? `，${duplicateCount} 条重复` : ''}）
         </button>
       </div>
     `;
@@ -1325,10 +1370,62 @@ function renderWigImportView(view) {
           <h3>导入结果</h3>
           <div class="import-preview-stats">
             <span class="pill">共 ${r.total} 条</span>
-            <span class="pill ok">成功 ${r.success} 条</span>
-            <span class="pill ${r.fail > 0 ? 'bad' : ''}">失败 ${r.fail} 条</span>
+            <span class="pill ok">新增 ${r.created} 条</span>
+            ${r.updated > 0 ? `<span class="pill accent">更新 ${r.updated} 条</span>` : ''}
+            ${r.skipped > 0 ? `<span class="pill warn">跳过 ${r.skipped} 条</span>` : ''}
+            ${r.fail > 0 ? `<span class="pill bad">失败 ${r.fail} 条</span>` : ''}
           </div>
         </div>
+        ${r.updatedItems && r.updatedItems.length > 0 ? `
+          <div class="import-updated-list">
+            <h4>更新详情</h4>
+            <div class="import-table-wrapper">
+              <table class="import-preview-table">
+                <thead>
+                  <tr>
+                    <th class="import-col-num">行号</th>
+                    <th>档案</th>
+                    <th>变更内容</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${r.updatedItems.map((item) => `
+                    <tr class="import-row-updated">
+                      <td class="import-col-num">${item.row}</td>
+                      <td>${escapeHtml(item.label)}</td>
+                      <td>${item.changes.map((c) => escapeHtml(c)).join('；') || '无变更'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+        ${r.skippedItems && r.skippedItems.length > 0 ? `
+          <div class="import-skipped-list">
+            <h4>跳过详情</h4>
+            <div class="import-table-wrapper">
+              <table class="import-preview-table">
+                <thead>
+                  <tr>
+                    <th class="import-col-num">行号</th>
+                    <th>档案</th>
+                    <th>匹配档案ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${r.skippedItems.map((item) => `
+                    <tr>
+                      <td class="import-col-num">${item.row}</td>
+                      <td>${escapeHtml(item.label)}</td>
+                      <td>${escapeHtml(item.existingId)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
         ${r.failures && r.failures.length > 0 ? `
           <div class="import-failures">
             <h4>失败行详情</h4>
@@ -1365,8 +1462,10 @@ function renderWigImportView(view) {
           ${requiredFields.map((f) => `<span class="import-field-chip required">${escapeHtml(fieldLabels[f] || f)} *</span>`).join('')}
           ${['capSize', 'hairline', 'status', 'note'].map((f) => `<span class="import-field-chip">${escapeHtml(fieldLabels[f] || f)}</span>`).join('')}
         </div>
+        <p><strong>重复识别规则：</strong>根据角色、剧目、演出日期和存放位置匹配已有档案。重复行可选择跳过、覆盖备注和状态、或作为新档案导入。</p>
         <p class="import-hint-example"><strong>示例 CSV：</strong></p>
         <pre class="import-example">角色,剧目,发色,发网尺寸,发际线类型,存放位置,演出日期,可用状态,备注
+夜游女王,午夜花园,银灰混蓝,M,手勾蕾丝前额,A柜-03,2026-07-03,需要维修,重复测试-覆盖
 花仙子,绿野仙踪,金色长卷,M,手勾蕾丝前额,C柜-02,2026-07-15,可演出,新制作
 女巫,绿野仙踪,黑色大卷,L,普通前网,C柜-03,2026-07-15,可演出,</pre>
       </div>
@@ -2521,16 +2620,30 @@ document.addEventListener('click', async (event) => {
     const normalizedRows = normalizeRows(rows, headers);
     const view = state.config.views.find((v) => v.type === 'wigImport');
     const validated = validateRows(normalizedRows, view?.requiredFields || []);
+
+    let duplicateInfo = [];
+    try {
+      const dupResult = await api('/api/wigs/check-duplicates', {
+        method: 'POST',
+        body: JSON.stringify({ rows: normalizedRows })
+      });
+      duplicateInfo = dupResult.results || [];
+    } catch (error) {
+      duplicateInfo = normalizedRows.map(() => ({ isDuplicate: false, match: null }));
+    }
+
     window.__wigImportState = {
       csvText,
       parsedRows: rows,
       validatedRows: validated,
+      duplicateInfo,
       importResult: null
     };
     render();
     setTab('wigImport');
     const validCount = validated.filter((r) => r.isValid).length;
-    toast(`已解析 ${validated.length} 行，${validCount} 行有效`);
+    const dupCount = duplicateInfo.filter((d) => d.isDuplicate).length;
+    toast(`已解析 ${validated.length} 行，${validCount} 行有效${dupCount > 0 ? `，${dupCount} 行疑似重复` : ''}`);
   }
 
   if (importClearBtn) {
@@ -2540,6 +2653,7 @@ document.addEventListener('click', async (event) => {
       csvText: '',
       parsedRows: [],
       validatedRows: [],
+      duplicateInfo: [],
       importResult: null
     };
     render();
@@ -2560,10 +2674,19 @@ document.addEventListener('click', async (event) => {
       toast('没有可导入的有效数据');
       return;
     }
+
+    const duplicateModes = importState.validatedRows.map((row, idx) => {
+      if (!row.isValid) return 'new';
+      const dupInfo = importState.duplicateInfo?.[idx];
+      if (!dupInfo?.isDuplicate) return 'new';
+      const selectEl = document.querySelector(`[data-import-mode-idx="${idx}"]`);
+      return selectEl?.value || 'skip';
+    });
+
     try {
       const result = await api('/api/wigs/batch-import', {
         method: 'POST',
-        body: JSON.stringify({ rows: allRows })
+        body: JSON.stringify({ rows: allRows, duplicateModes })
       });
       window.__wigImportState = {
         ...importState,
@@ -2572,7 +2695,12 @@ document.addEventListener('click', async (event) => {
       render();
       setTab('wigImport');
       await load();
-      toast(`导入完成：成功 ${result.success} 条，失败 ${result.fail} 条`);
+      const parts = [];
+      if (result.created > 0) parts.push(`新增 ${result.created} 条`);
+      if (result.updated > 0) parts.push(`更新 ${result.updated} 条`);
+      if (result.skipped > 0) parts.push(`跳过 ${result.skipped} 条`);
+      if (result.fail > 0) parts.push(`失败 ${result.fail} 条`);
+      toast(`导入完成：${parts.join('，') || '无变更'}`);
     } catch (error) {
       toast(error.message);
     }
@@ -3038,6 +3166,16 @@ async function loadCreateFormRecommendations(form, viewId) {
 }
 
 document.addEventListener('change', (event) => {
+  const batchModeSelect = event.target.closest('#import-batch-mode');
+  if (batchModeSelect) {
+    const mode = batchModeSelect.value;
+    if (!mode) return;
+    $$('.import-mode-select').forEach((select) => {
+      select.value = mode;
+    });
+    return;
+  }
+
   const form = event.target.closest('[data-create][data-view]');
   if (!form) return;
   const viewId = form.dataset.view;

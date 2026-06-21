@@ -1634,9 +1634,57 @@ app.post('/api/repairs/smart-assign', async (req, res) => {
   });
 });
 
+function findDuplicateWig(db, role, show, performanceDate, location) {
+  return (db.wigs || []).find((w) =>
+    w.role === role &&
+    w.show === show &&
+    w.performanceDate === performanceDate &&
+    w.location === location
+  ) || null;
+}
+
+app.post('/api/wigs/check-duplicates', async (req, res) => {
+  const db = await readDb();
+  const rows = req.body?.rows || [];
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ error: '请提供有效的数据' });
+  }
+
+  const results = rows.map((row, idx) => {
+    const role = String(row.role || '').trim();
+    const show = String(row.show || '').trim();
+    const performanceDate = String(row.performanceDate || '').trim();
+    const location = String(row.location || '').trim();
+
+    if (!role || !show || !performanceDate || !location) {
+      return { rowIndex: idx, isDuplicate: false, match: null };
+    }
+
+    const match = findDuplicateWig(db, role, show, performanceDate, location);
+    return {
+      rowIndex: idx,
+      isDuplicate: !!match,
+      match: match ? {
+        id: match.id,
+        role: match.role,
+        show: match.show,
+        color: match.color,
+        location: match.location,
+        performanceDate: match.performanceDate,
+        status: match.status,
+        note: match.note
+      } : null
+    };
+  });
+
+  res.json({ results });
+});
+
 app.post('/api/wigs/batch-import', async (req, res) => {
   const db = await readDb();
   const rows = req.body?.rows || [];
+  const duplicateModes = req.body?.duplicateModes || [];
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return res.status(400).json({ error: '请提供有效的导入数据' });
@@ -1644,10 +1692,15 @@ app.post('/api/wigs/batch-import', async (req, res) => {
 
   const requiredFields = ['role', 'show', 'color', 'location', 'performanceDate'];
   const now = new Date().toISOString();
-  let successCount = 0;
+  let createdCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
   let failCount = 0;
   const failures = [];
   const createdItems = [];
+  const updatedItems = [];
+  const skippedItems = [];
+  let hasWrite = false;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -1663,15 +1716,56 @@ app.post('/api/wigs/batch-import', async (req, res) => {
       continue;
     }
 
+    const mode = duplicateModes[i] || 'new';
+    const role = String(row.role).trim();
+    const show = String(row.show).trim();
+    const performanceDate = String(row.performanceDate).trim();
+    const location = String(row.location).trim();
+
+    const existing = findDuplicateWig(db, role, show, performanceDate, location);
+
+    if (existing) {
+      if (mode === 'skip') {
+        skippedCount++;
+        skippedItems.push({ row: i + 1, existingId: existing.id, label: `${role} / ${show}` });
+        continue;
+      }
+
+      if (mode === 'overwrite') {
+        const before = deepClone(existing);
+        const newNote = row.note ? String(row.note).trim() : existing.note;
+        const newStatus = row.status ? String(row.status).trim() : existing.status;
+
+        const changes = [];
+        if (newStatus !== existing.status) changes.push(`状态：${existing.status} → ${newStatus}`);
+        if (newNote !== existing.note) changes.push('备注已更新');
+
+        existing.note = newNote;
+        existing.status = newStatus;
+        existing.updatedAt = now;
+        existing.history = existing.history || [];
+        existing.history.unshift(stamp('批量导入更新', changes.length > 0 ? changes.join('；') : '无字段变更'));
+
+        updatedCount++;
+        updatedItems.push({ row: i + 1, id: existing.id, label: `${role} / ${show}`, changes });
+        hasWrite = true;
+
+        createAuditLog(db, 'update', 'wigs', existing.id, before, deepClone(existing), {
+          actionLabel: '批量导入更新'
+        });
+        continue;
+      }
+    }
+
     const item = {
       id: `wigs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
-      role: String(row.role).trim(),
-      show: String(row.show).trim(),
+      role,
+      show,
       color: String(row.color).trim(),
       capSize: row.capSize ? String(row.capSize).trim() : 'M',
       hairline: row.hairline ? String(row.hairline).trim() : '普通前网',
-      location: String(row.location).trim(),
-      performanceDate: String(row.performanceDate).trim(),
+      location,
+      performanceDate,
       status: row.status ? String(row.status).trim() : '可演出',
       note: row.note ? String(row.note).trim() : '',
       createdAt: now,
@@ -1681,21 +1775,29 @@ app.post('/api/wigs/batch-import', async (req, res) => {
 
     db.wigs.push(item);
     createdItems.push(item);
-    successCount++;
+    createdCount++;
+    hasWrite = true;
 
-    createAuditLog(db, 'create', 'wigs', item.id, null, item);
+    createAuditLog(db, 'create', 'wigs', item.id, null, item, {
+      actionLabel: existing ? '批量导入创建（重复新建）' : '批量导入创建'
+    });
   }
 
-  if (successCount > 0) {
+  if (hasWrite) {
     await writeDb(db);
   }
 
   res.json({
-    success: successCount,
+    created: createdCount,
+    updated: updatedCount,
+    skipped: skippedCount,
     fail: failCount,
+    success: createdCount + updatedCount,
     total: rows.length,
     failures,
-    createdItems
+    createdItems,
+    updatedItems,
+    skippedItems
   });
 });
 
