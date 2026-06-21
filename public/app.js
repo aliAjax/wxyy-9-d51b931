@@ -7,8 +7,11 @@ const state = {
   auditLogs: { data: [], total: 0, loading: false },
   activeTab: '',
   dashboardDateFilter: { startDate: '', endDate: '' },
+  performanceWorkbench: { date: '', data: null, loading: false },
   _warningsDebounceTimer: null,
-  _dashboardDebounceTimer: null
+  _dashboardDebounceTimer: null,
+  _workbenchDebounceTimer: null,
+  pendingWorkbenchAction: null
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -355,6 +358,13 @@ async function setTab(tabId) {
   if (tabId === 'auditLogs' && state.auditLogs.data.length === 0) {
     await loadAuditLogs();
     renderAuditList();
+  }
+
+  if (tabId === 'performanceWorkbench') {
+    const date = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
+    if (!state.performanceWorkbench.data || state.performanceWorkbench.date !== date) {
+      await loadPerformanceWorkbench(date);
+    }
   }
 }
 
@@ -2214,11 +2224,275 @@ function renderAvailabilityWarningsView(view) {
   </section>`;
 }
 
+function renderWorkbenchRoleCard(roleItem) {
+  const statusLabel = {
+    ready: '可上场',
+    readyWithWarnings: '有提示可上场',
+    blocked: '阻塞'
+  }[roleItem.overallStatus] || '未知';
+  const statusTone = {
+    ready: 'ok',
+    readyWithWarnings: 'warn',
+    blocked: 'bad'
+  }[roleItem.overallStatus] || 'muted';
+
+  const wigInfo = roleItem.wig;
+  const wigStatusBadge = wigInfo ? `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, toneFor(wigInfo.status))}</div>` : '';
+
+  const blockReasonsHtml = roleItem.blockReasons.length > 0 ? `
+    <div class="workbench-reasons">
+      <div class="workbench-reasons-title">${roleItem.overallStatus === 'blocked' ? '阻塞原因' : '需要关注'}</div>
+      ${roleItem.blockReasons.map(r => `
+        <div class="workbench-reason-item ${r.severity === 'high' ? 'severity-high' : 'severity-medium'}">
+          <span class="workbench-reason-dot"></span>
+          <span>${escapeHtml(r.message)}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const warningsHtml = roleItem.warnings.length > 0 ? `
+    <div class="workbench-warnings">
+      <div class="workbench-warnings-title">提示</div>
+      ${roleItem.warnings.map(w => `
+        <div class="workbench-warning-item severity-${w.severity}">
+          <span class="workbench-warning-dot"></span>
+          <span>${escapeHtml(w.message)}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const detailsHtml = [];
+  if (roleItem.latestRepair) {
+    detailsHtml.push(`
+      <div class="workbench-detail-item">
+        <span class="workbench-detail-label">最新维修</span>
+        <span class="workbench-detail-value">
+          ${pill(roleItem.latestRepair.status, toneFor(roleItem.latestRepair.status))}
+          <span style="margin-left:6px;">${escapeHtml(roleItem.latestRepair.type)}</span>
+          ${roleItem.latestRepair.dueDate ? `<span style="color:var(--muted);margin-left:6px;">截止 ${escapeHtml(roleItem.latestRepair.dueDate)}</span>` : ''}
+          ${roleItem.latestRepair.handler ? `<span style="color:var(--muted);"> · ${escapeHtml(roleItem.latestRepair.handler)}</span>` : ''}
+        </span>
+      </div>
+    `);
+  }
+  if (roleItem.activeLending) {
+    const lendingTone = roleItem.activeLending.isOverdue ? 'bad' : toneFor(roleItem.activeLending.status);
+    detailsHtml.push(`
+      <div class="workbench-detail-item">
+        <span class="workbench-detail-label">借出状态</span>
+        <span class="workbench-detail-value">
+          ${pill(roleItem.activeLending.status, lendingTone)}
+          <span style="margin-left:6px;">${escapeHtml(roleItem.activeLending.actor || '演员')}</span>
+          ${roleItem.activeLending.expectedReturnDate ? `<span style="color:var(--muted);margin-left:6px;">预计归还 ${escapeHtml(roleItem.activeLending.expectedReturnDate)}</span>` : ''}
+        </span>
+      </div>
+    `);
+  }
+  if (roleItem.preChecklist) {
+    detailsHtml.push(`
+      <div class="workbench-detail-item">
+        <span class="workbench-detail-label">演出前检查</span>
+        <span class="workbench-detail-value">
+          ${pill(roleItem.preChecklist.status, toneFor(roleItem.preChecklist.status))}
+          ${roleItem.preChecklist.checker ? `<span style="color:var(--muted);margin-left:6px;">检查人 ${escapeHtml(roleItem.preChecklist.checker)}</span>` : ''}
+          ${roleItem.preChecklist.findings ? `<span style="color:var(--muted);"> · ${escapeHtml(roleItem.preChecklist.findings.substring(0, 30))}</span>` : ''}
+        </span>
+      </div>
+    `);
+  }
+  if (wigInfo && wigInfo.location) {
+    detailsHtml.push(`
+      <div class="workbench-detail-item">
+        <span class="workbench-detail-label">存放位置</span>
+        <span class="workbench-detail-value">${escapeHtml(wigInfo.location)}</span>
+      </div>
+    `);
+  }
+
+  const actionsHtml = roleItem.nextActions.length > 0 ? `
+    <div class="workbench-actions">
+      ${roleItem.nextActions.map(action => {
+        if (action.type === 'link') {
+          return `<button class="ghost" data-workbench-link="${action.target}" data-repair-id="${action.repairId || ''}">${escapeHtml(action.label)}</button>`;
+        }
+        return `<button class="${action.actionType === 'create-repair' ? 'danger' : ''}" 
+          data-workbench-action="${action.actionType}" 
+          data-wig-id="${roleItem.wigId || ''}"
+          data-lending-id="${action.lendingId || ''}"
+          data-performance-date="${roleItem.performanceDate || ''}"
+          data-show="${escapeHtml(roleItem.show || '')}"
+          data-role="${escapeHtml(roleItem.role || '')}"
+        >${escapeHtml(action.label)}</button>`;
+      }).join('')}
+    </div>
+  ` : '';
+
+  return `
+    <article class="workbench-card workbench-${roleItem.overallStatus}">
+      <div class="workbench-card-head">
+        <div class="workbench-card-title">
+          <h3>${escapeHtml(roleItem.role)}${roleItem.show ? ` <span class="workbench-show">· ${escapeHtml(roleItem.show)}</span>` : ''}</h3>
+          ${pill(statusLabel, statusTone)}
+        </div>
+        ${wigInfo && wigInfo.color ? `<div class="workbench-wig-color" style="background-color:${escapeHtml(wigInfo.color)}" title="${escapeHtml(wigInfo.color)}"></div>` : ''}
+      </div>
+      ${wigStatusBadge}
+      ${detailsHtml.length > 0 ? `<div class="workbench-details">${detailsHtml.join('')}</div>` : ''}
+      ${blockReasonsHtml}
+      ${warningsHtml}
+      ${actionsHtml}
+    </article>
+  `;
+}
+
+function renderPerformanceWorkbenchView(view) {
+  const wb = state.performanceWorkbench;
+  const data = wb.data;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentDate = wb.date || todayStr;
+
+  let statsHtml = '';
+  let contentHtml = '';
+  let consumableAlertsHtml = '';
+
+  if (data) {
+    const s = data.stats || {};
+    statsHtml = `
+      <div class="workbench-stats">
+        <div class="workbench-stat-item">
+          <span class="pill ok">可上场</span>
+          <strong>${s.ready || 0}</strong>
+        </div>
+        <div class="workbench-stat-item">
+          <span class="pill warn">有提示</span>
+          <strong>${s.readyWithWarnings || 0}</strong>
+        </div>
+        <div class="workbench-stat-item">
+          <span class="pill bad">阻塞</span>
+          <strong>${s.blocked || 0}</strong>
+        </div>
+        <div class="workbench-stat-item">
+          <span class="pill muted">角色总数</span>
+          <strong>${data.totalRoles || 0}</strong>
+        </div>
+        ${s.consumableAlerts > 0 ? `
+          <div class="workbench-stat-item">
+            <span class="pill warn">耗材告警</span>
+            <strong>${s.consumableAlerts}</strong>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    if (data.consumableAlerts && data.consumableAlerts.length > 0) {
+      consumableAlertsHtml = `
+        <div class="workbench-consumable-alerts">
+        <h3>耗材库存告警</h3>
+        <div class="workbench-consumable-list">
+          ${data.consumableAlerts.map(c => `
+            <div class="workbench-consumable-item">
+              <span class="workbench-consumable-name">${escapeHtml(c.name)}</span>
+              <span class="pill bad">库存 ${c.stock}${c.unit} / 安全 ${c.minStock}${c.unit}</span>
+              ${c.shortage > 0 ? `<span class="workbench-consumable-shortage">缺口 ${c.shortage}${c.unit}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      `;
+    }
+
+    if (!data.hasPerformances) {
+      contentHtml = `<div class="empty">${escapeHtml(currentDate)} 暂无演出排期</div>`;
+    } else {
+      contentHtml = `
+        <div class="workbench-roles-grid">
+          ${data.roleItems.map(renderWorkbenchRoleCard).join('')}
+        </div>
+      `;
+    }
+  } else if (wb.loading) {
+    contentHtml = `<div class="empty">加载中...</div>`;
+  }
+
+  const dateLabel = formatDateLabel(currentDate);
+
+  return `
+  <section class="view" id="${view.id}">
+    <div class="panel workbench-panel">
+      <div class="workbench-header">
+        <h2>演出准备工作台</h2>
+        <div class="workbench-date-selector">
+          <label>选择演出日期
+            <input type="date" id="workbench-date" value="${escapeHtml(currentDate)}">
+          </label>
+          <div class="workbench-date-label">${escapeHtml(dateLabel)}</div>
+        </div>
+        <div class="workbench-quick-dates">
+          <button class="ghost small" data-workbench-quick-date="${todayStr}">今天</button>
+          <button class="ghost small" data-workbench-quick-date="${new Date(Date.now() + 86400000).toISOString().split('T')[0]}">明天</button>
+          <button class="ghost small" data-workbench-quick-date="${new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0]}">后天</button>
+          <button class="ghost small" data-workbench-refresh>刷新</button>
+        </div>
+      </div>
+      ${statsHtml}
+      ${consumableAlertsHtml}
+      <div class="workbench-content">
+        ${contentHtml}
+      </div>
+    </div>
+    <div id="workbench-overdue-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>逾期归还说明</h3>
+          <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="overdue-reason-hint">该借出已超过预计归还日期，请填写逾期说明后再标记归还。</p>
+          <div class="overdue-lending-info">
+            <div class="overdue-info-item"><span class="overdue-info-label">演员：</span><span class="overdue-info-value" id="workbench-overdue-actor">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">剧目：</span><span class="overdue-info-value" id="workbench-overdue-show">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">角色：</span><span class="overdue-info-value" id="workbench-overdue-role">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">预计归还：</span><span class="overdue-info-value" id="workbench-overdue-expected">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">逾期天数：</span><span class="overdue-info-value overdue-days-value" id="workbench-overdue-days">-</span></div>
+          </div>
+          <label>逾期说明 <span class="required-mark">*</span>
+            <textarea id="workbench-overdue-reason-input" placeholder="请说明逾期原因，例如：演员临时加场、设备问题延迟归还等"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary" data-modal-close>取消</button>
+          <button id="workbench-overdue-reason-confirm" class="primary">确认标记归还</button>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+async function loadPerformanceWorkbench(date) {
+  if (!date) return;
+  state.performanceWorkbench.loading = true;
+  state.performanceWorkbench.date = date;
+  render();
+  try {
+    const data = await api(`/api/performance-workbench/${date}`);
+    state.performanceWorkbench.data = data;
+  } catch (error) {
+    state.performanceWorkbench.data = null;
+    toast(error.message);
+  } finally {
+    state.performanceWorkbench.loading = false;
+    render();
+  }
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
   $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'performanceWorkbench') return renderPerformanceWorkbenchView(view);
     if (view.type === 'availabilityWarnings') return renderAvailabilityWarningsView(view);
     if (view.type === 'dashboard') return renderDashboardView(view);
     if (view.type === 'preChecklist') return renderPreChecklistView(view);
@@ -2248,6 +2522,9 @@ async function load() {
   const warningsStart = $('#warnings-date-start')?.value || '';
   const warningsEnd = $('#warnings-date-end')?.value || '';
   const warningsStatus = $('#warnings-status-filter')?.value ?? state.warningStatusFilter;
+
+  const workbenchDate = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
+
   const [db, staffStats, dispatchBoard, availabilityWarnings] = await Promise.all([
     api('/api/db'),
     api('/api/staff-stats'),
@@ -2261,6 +2538,11 @@ async function load() {
 
   if (state.activeTab === 'auditLogs') {
     await loadAuditLogs();
+  }
+
+  if (state.activeTab === 'performanceWorkbench' || !state.activeTab) {
+    await loadPerformanceWorkbench(workbenchDate);
+    return;
   }
 
   render();
@@ -3143,6 +3425,131 @@ document.addEventListener('click', async (event) => {
     await loadAuditLogs(currentOffset);
     renderAuditList();
   }
+
+  const workbenchQuickDate = event.target.closest('[data-workbench-quick-date]');
+  if (workbenchQuickDate) {
+    event.preventDefault();
+    event.stopPropagation();
+    const date = workbenchQuickDate.dataset.workbenchQuickDate;
+    if (date) {
+      await loadPerformanceWorkbench(date);
+    }
+  }
+
+  const workbenchRefresh = event.target.closest('[data-workbench-refresh]');
+  if (workbenchRefresh) {
+    event.preventDefault();
+    event.stopPropagation();
+    const date = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
+    await loadPerformanceWorkbench(date);
+    toast('已刷新');
+  }
+
+  const workbenchAction = event.target.closest('[data-workbench-action]');
+  if (workbenchAction) {
+    event.preventDefault();
+    event.stopPropagation();
+    const actionType = workbenchAction.dataset.workbenchAction;
+    const wigId = workbenchAction.dataset.wigId;
+    const lendingId = workbenchAction.dataset.lendingId;
+    const performanceDate = workbenchAction.dataset.performanceDate;
+    const show = workbenchAction.dataset.show;
+    const role = workbenchAction.dataset.role;
+
+    if (actionType === 'mark-return' && lendingId) {
+      const lending = (state.db.lendings || []).find((l) => l.id === lendingId);
+      const isOverdue = lending ? isLendingOverdue(lending) : false;
+      if (isOverdue) {
+        const overdueModal = $('#workbench-overdue-modal');
+        if (!overdueModal) return;
+        state.pendingWorkbenchAction = { actionType, wigId, lendingId, performanceDate, show, role };
+
+        const actorEl = $('#workbench-overdue-actor');
+        const showEl = $('#workbench-overdue-show');
+        const roleEl = $('#workbench-overdue-role');
+        const expectedEl = $('#workbench-overdue-expected');
+        const daysEl = $('#workbench-overdue-days');
+        if (actorEl) actorEl.textContent = lending.actor || '-';
+        if (showEl) showEl.textContent = lending.show || '-';
+        if (roleEl) roleEl.textContent = lending.role || '-';
+        if (expectedEl) expectedEl.textContent = lending.expectedReturnDate || '-';
+        if (daysEl) {
+          const overdueDays = Math.ceil((new Date() - new Date(lending.expectedReturnDate)) / (1000 * 60 * 60 * 24));
+          daysEl.textContent = `${overdueDays} 天`;
+        }
+
+        const overdueReasonInput = $('#workbench-overdue-reason-input');
+        if (overdueReasonInput) overdueReasonInput.value = '';
+        overdueModal.classList.add('show');
+        return;
+      }
+    }
+
+    try {
+      const result = await api('/api/performance-workbench/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          actionType,
+          wigId,
+          lendingId,
+          performanceDate,
+          show,
+          role
+        })
+      });
+      await load();
+      toast(result.message || '操作成功');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  const workbenchLink = event.target.closest('[data-workbench-link]');
+  if (workbenchLink) {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = workbenchLink.dataset.workbenchLink;
+    if (target) {
+      setTab(target);
+    }
+  }
+
+  const workbenchOverdueConfirm = event.target.closest('#workbench-overdue-reason-confirm');
+  if (workbenchOverdueConfirm) {
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = $('#workbench-overdue-modal');
+    if (!modal) return;
+
+    const overdueReason = $('#workbench-overdue-reason-input')?.value?.trim() || '';
+    if (!overdueReason) {
+      toast('请填写逾期说明');
+      return;
+    }
+
+    const pending = state.pendingWorkbenchAction;
+    if (!pending) {
+      toast('操作上下文丢失，请重试');
+      modal.classList.remove('show');
+      return;
+    }
+
+    try {
+      const result = await api('/api/performance-workbench/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...pending,
+          overdueReason
+        })
+      });
+      modal.classList.remove('show');
+      state.pendingWorkbenchAction = null;
+      await load();
+      toast(result.message || '操作成功');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
 });
 
 document.addEventListener('input', async (event) => {
@@ -3333,7 +3740,16 @@ async function loadCreateFormRecommendations(form, viewId) {
   }
 }
 
-document.addEventListener('change', (event) => {
+document.addEventListener('change', async (event) => {
+  const workbenchDateInput = event.target.closest('#workbench-date');
+  if (workbenchDateInput) {
+    const date = workbenchDateInput.value;
+    if (date) {
+      await loadPerformanceWorkbench(date);
+    }
+    return;
+  }
+
   const batchModeSelect = event.target.closest('#import-batch-mode');
   if (batchModeSelect) {
     const mode = batchModeSelect.value;

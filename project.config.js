@@ -93,6 +93,12 @@ module.exports = {
   ],
   views: [
     {
+      id: 'performanceWorkbench',
+      label: '演出准备工作台',
+      type: 'performanceWorkbench',
+      collection: 'schedules'
+    },
+    {
       id: 'availabilityWarnings',
       label: '演出可用性预警',
       type: 'availabilityWarnings',

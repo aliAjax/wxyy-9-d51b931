@@ -2581,6 +2581,562 @@ app.post('/api/availability-warnings/action', async (req, res) => {
   }
 });
 
+app.get('/api/performance-workbench/:date', async (req, res) => {
+  const db = await readDb();
+  const { date } = req.params;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: '请提供有效的日期（YYYY-MM-DD格式）' });
+  }
+
+  const schedules = (db.schedules || []).filter((s) => s.performanceDate === date);
+  const wigs = db.wigs || [];
+  const repairs = db.repairs || [];
+  const lendings = db.lendings || [];
+  const preChecklists = db.preChecklists || [];
+  const consumables = db.consumables || [];
+  const staff = db.staff || [];
+  const warningStatuses = db.warningStatuses || [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  const daysUntil = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+
+  const roleItems = [];
+
+  for (const schedule of schedules) {
+    const wig = wigs.find((w) => w.id === schedule.wigId);
+    const wigLabel = wig ? `${wig.role} / ${wig.show}` : '未关联假发';
+
+    const activeRepairs = repairs.filter(
+      (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+    );
+    const latestRepair = activeRepairs.sort(
+      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+    )[0];
+
+    const activeLending = lendings.find(
+      (l) => l.wigId === schedule.wigId && ['借出中', '归还待检查'].includes(l.status)
+    );
+    const lendingIsOverdue = activeLending ? isLendingOverdue(activeLending) : false;
+
+    const relatedPreCheck = preChecklists
+      .filter(
+        (c) => c.wigId === schedule.wigId && c.performanceDate === schedule.performanceDate
+      )
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+
+    const lastFailedReturnLending = lendings
+      .filter((l) => l.wigId === schedule.wigId && l.status === '归还检查不通过')
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+
+    const sameDateSchedules = schedules.filter(
+      (s) => s.id !== schedule.id && s.wigId === schedule.wigId
+    );
+
+    const blockReasons = [];
+    const warnings = [];
+    const nextActions = [];
+
+    if (!wig) {
+      blockReasons.push({
+        type: 'missingWig',
+        severity: 'high',
+        message: '该排期未关联假发'
+      });
+      nextActions.push({
+        id: 'assign-wig',
+        label: '关联假发',
+        type: 'link',
+        target: 'schedules'
+      });
+    } else {
+      if (wig.status === '需要维修' || wig.status === '紧急维修') {
+        blockReasons.push({
+          type: 'wigNeedsRepair',
+          severity: 'high',
+          message: `假发状态为「${wig.status}」，${activeRepairs.length > 0 ? `存在 ${activeRepairs.length} 个未完成维修单` : '请尽快创建维修单'}`
+        });
+        if (activeRepairs.length === 0) {
+          nextActions.push({
+            id: 'create-repair',
+            label: '创建维修单',
+            type: 'action',
+            actionType: 'create-repair'
+          });
+        }
+      }
+
+      for (const repair of activeRepairs) {
+        if (repair.dueDate) {
+          const due = new Date(repair.dueDate);
+          due.setHours(0, 0, 0, 0);
+          if (due > targetDate) {
+            const lateDays = Math.ceil((due - targetDate) / (1000 * 60 * 60 * 24));
+            blockReasons.push({
+              type: 'repairLate',
+              severity: 'high',
+              message: `维修单「${repair.type}」截止日 ${repair.dueDate} 晚于演出日 ${lateDays} 天，处理人：${staff.find((s) => s.id === repair.handler)?.name || repair.handler || '未指派'}`
+            });
+            nextActions.push({
+              id: 'reassign-repair',
+              label: '重新指派维修',
+              type: 'link',
+              target: 'dispatchBoard',
+              repairId: repair.id
+            });
+          }
+        }
+      }
+
+      if (activeLending) {
+        const overdueDays = lendingIsOverdue
+          ? Math.ceil((today - new Date(activeLending.expectedReturnDate)) / (1000 * 60 * 60 * 24))
+          : 0;
+        let lendingDesc = '';
+        let lendingBlocked = false;
+
+        if (activeLending.expectedReturnDate) {
+          const expectedReturn = new Date(activeLending.expectedReturnDate);
+          expectedReturn.setHours(0, 0, 0, 0);
+          if (expectedReturn > targetDate) {
+            lendingBlocked = true;
+            lendingDesc = `预计归还日 ${activeLending.expectedReturnDate} 晚于演出日`;
+          }
+        } else {
+          lendingBlocked = true;
+          lendingDesc = `借出给 ${activeLending.actor}，无预计归还日期`;
+        }
+
+        if (lendingIsOverdue) {
+          lendingBlocked = true;
+          lendingDesc = `已逾期 ${overdueDays} 天未归还（预计归还日 ${activeLending.expectedReturnDate}）${activeLending.overdueReason ? `，逾期说明：${activeLending.overdueReason}` : ''}`;
+        } else if (activeLending.status === '借出中' && !lendingBlocked) {
+          lendingDesc = `借出给 ${activeLending.actor}，状态「${activeLending.status}」，预计归还 ${activeLending.expectedReturnDate}`;
+        } else if (activeLending.status === '归还待检查') {
+          lendingDesc = `已归还待检查，借出给 ${activeLending.actor}`;
+        }
+
+        if (lendingBlocked || activeLending.status === '归还待检查') {
+          blockReasons.push({
+            type: activeLending.status === '借出中' ? 'lendingOverdue' : 'lendingPendingCheck',
+            severity: lendingBlocked ? 'high' : 'medium',
+            message: lendingDesc
+          });
+        } else {
+          warnings.push({
+            type: 'lendingActive',
+            severity: 'medium',
+            message: lendingDesc
+          });
+        }
+
+        if (activeLending.status === '借出中') {
+          nextActions.push({
+            id: 'mark-return',
+            label: '标记归还待检查',
+            type: 'action',
+            actionType: 'mark-return',
+            lendingId: activeLending.id
+          });
+        } else if (activeLending.status === '归还待检查') {
+          nextActions.push({
+            id: 'go-lending-check',
+            label: '去检查归还',
+            type: 'link',
+            target: 'lendings'
+          });
+        }
+      }
+
+      if (sameDateSchedules.length > 0) {
+        blockReasons.push({
+          type: 'scheduleConflict',
+          severity: 'medium',
+          message: `同一假发在同一场次被 ${sameDateSchedules.length + 1} 个角色使用：${sameDateSchedules.map((s) => s.role).join('、')}、${schedule.role}`
+        });
+        nextActions.push({
+          id: 'go-schedules',
+          label: '调整排期',
+          type: 'link',
+          target: 'schedules'
+        });
+      }
+
+      if (lastFailedReturnLending) {
+        const hasFollowUpRepair = repairs.some(
+          (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+        );
+        if (!hasFollowUpRepair) {
+          blockReasons.push({
+            type: 'returnCheckFail',
+            severity: 'high',
+            message: `最近归还检查不通过，问题：${lastFailedReturnLending.checkFindings || '未记录'}，尚未创建维修单`
+          });
+          nextActions.push({
+            id: 'create-repair',
+            label: '创建维修单',
+            type: 'action',
+            actionType: 'create-repair'
+          });
+        } else {
+          warnings.push({
+            type: 'returnCheckFailFollowed',
+            severity: 'medium',
+            message: `最近归还检查不通过，问题：${lastFailedReturnLending.checkFindings || '未记录'}，已创建维修单跟进`
+          });
+        }
+      }
+
+      if (relatedPreCheck) {
+        if (relatedPreCheck.status === '待检查' && daysUntil <= 7) {
+          const severity = daysUntil <= 2 ? 'high' : 'medium';
+          (severity === 'high' ? blockReasons : warnings).push({
+            type: 'preCheckPending',
+            severity,
+            message: `距离演出还有 ${daysUntil} 天，演出前检查尚未完成`
+          });
+          nextActions.push({
+            id: 'go-precheck',
+            label: '去执行检查',
+            type: 'link',
+            target: 'preChecklists'
+          });
+        } else if (relatedPreCheck.status === '检查不通过') {
+          const hasRepair = repairs.some(
+            (r) => r.wigId === schedule.wigId && ['待处理', '维修中', '待检查'].includes(r.status)
+          );
+          blockReasons.push({
+            type: 'preCheckFailed',
+            severity: 'high',
+            message: `演出前检查不通过，问题：${relatedPreCheck.findings || '未记录'}${hasRepair ? '，已创建维修单跟进' : '，尚未跟进'}`
+          });
+          if (!hasRepair) {
+            nextActions.push({
+              id: 'create-repair',
+              label: '创建维修单',
+              type: 'action',
+              actionType: 'create-repair'
+            });
+          }
+        }
+      } else if (daysUntil <= 7) {
+        const severity = daysUntil <= 2 ? 'high' : 'medium';
+        (severity === 'high' ? blockReasons : warnings).push({
+          type: 'noPreCheck',
+          severity,
+          message: `距离演出还有 ${daysUntil} 天，尚未生成演出前检查任务`
+        });
+        nextActions.push({
+          id: 'generate-precheck',
+          label: '生成检查任务',
+          type: 'action',
+          actionType: 'generate-precheck'
+        });
+      }
+    }
+
+    const canPerform = blockReasons.filter((r) => r.severity === 'high').length === 0;
+    const overallStatus = canPerform
+      ? (warnings.length > 0 ? 'readyWithWarnings' : 'ready')
+      : 'blocked';
+
+    roleItems.push({
+      scheduleId: schedule.id,
+      wigId: schedule.wigId,
+      show: schedule.show,
+      role: schedule.role,
+      performanceDate: schedule.performanceDate,
+      wig: wig
+        ? {
+            id: wig.id,
+            role: wig.role,
+            show: wig.show,
+            color: wig.color,
+            status: wig.status,
+            location: wig.location,
+            note: wig.note
+          }
+        : null,
+      wigLabel,
+      canPerform,
+      overallStatus,
+      blockReasons,
+      warnings,
+      nextActions,
+      activeRepairs: activeRepairs.map((r) => ({
+        id: r.id,
+        type: r.type,
+        status: r.status,
+        handler: staff.find((s) => s.id === r.handler)?.name || r.handler || '未指派',
+        handlerId: r.handler,
+        dueDate: r.dueDate,
+        details: r.details
+      })),
+      latestRepair: latestRepair
+        ? {
+            id: latestRepair.id,
+            type: latestRepair.type,
+            status: latestRepair.status,
+            handler: staff.find((s) => s.id === latestRepair.handler)?.name || latestRepair.handler || '未指派',
+            dueDate: latestRepair.dueDate
+          }
+        : null,
+      activeLending: activeLending
+        ? {
+            id: activeLending.id,
+            actor: activeLending.actor,
+            status: activeLending.status,
+            lendDate: activeLending.lendDate,
+            expectedReturnDate: activeLending.expectedReturnDate,
+            actualReturnDate: activeLending.actualReturnDate,
+            isOverdue: lendingIsOverdue,
+            overdueReason: activeLending.overdueReason
+          }
+        : null,
+      preChecklist: relatedPreCheck
+        ? {
+            id: relatedPreCheck.id,
+            status: relatedPreCheck.status,
+            findings: relatedPreCheck.findings,
+            suggestions: relatedPreCheck.suggestions,
+            checkedAt: relatedPreCheck.checkedAt,
+            checker: relatedPreCheck.checker,
+            templateSource: relatedPreCheck.templateSource
+          }
+        : null,
+      scheduleStatus: schedule.status || '已排期'
+    });
+  }
+
+  const consumableAlerts = consumables
+    .filter((c) => Number(c.stock) <= Number(c.safeStock || c.minStock || 0))
+    .map((c) => {
+      const minStock = Number(c.safeStock || c.minStock) || 0;
+      return {
+        id: c.id,
+        name: c.name,
+        stock: Number(c.stock) || 0,
+        minStock,
+        unit: c.unit || '个',
+        shortage: Math.max(0, minStock - Number(c.stock || 0))
+      };
+    });
+
+  const highBlockCount = roleItems.filter(
+    (r) => r.blockReasons.some((b) => b.severity === 'high')
+  ).length;
+  const warningCount = roleItems.reduce((sum, r) => sum + r.warnings.length, 0);
+  const readyCount = roleItems.filter((r) => r.overallStatus === 'ready').length;
+  const readyWithWarningsCount = roleItems.filter(
+    (r) => r.overallStatus === 'readyWithWarnings'
+  ).length;
+  const blockedCount = roleItems.filter((r) => r.overallStatus === 'blocked').length;
+
+  roleItems.sort((a, b) => {
+    const statusRank = { blocked: 0, readyWithWarnings: 1, ready: 2 };
+    const rankDiff = (statusRank[a.overallStatus] || 0) - (statusRank[b.overallStatus] || 0);
+    if (rankDiff !== 0) return rankDiff;
+    return a.role.localeCompare(b.role, 'zh');
+  });
+
+  res.json({
+    date,
+    daysUntil,
+    totalRoles: roleItems.length,
+    stats: {
+      ready: readyCount,
+      readyWithWarnings: readyWithWarningsCount,
+      blocked: blockedCount,
+      highBlockCount,
+      warningCount,
+      consumableAlerts: consumableAlerts.length
+    },
+    roleItems,
+    consumableAlerts,
+    hasPerformances: roleItems.length > 0
+  });
+});
+
+app.post('/api/performance-workbench/action', async (req, res) => {
+  const db = await readDb();
+  const { actionType, wigId, lendingId, preChecklistId, performanceDate, show, role, overdueReason } = req.body || {};
+  const now = new Date().toISOString();
+
+  try {
+    if (actionType === 'create-repair' && wigId) {
+      const wig = db.wigs?.find((w) => w.id === wigId);
+      if (!wig) return res.status(404).json({ error: '假发不存在' });
+
+      const wigBefore = deepClone(wig);
+
+      const item = {
+        id: `repairs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+        wigId,
+        type: '勾织',
+        handler: '',
+        status: '待处理',
+        dueDate: performanceDate || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        details: `工作台快速创建：${show ? `剧目「${show}」` : ''}${role ? `角色「${role}」` : ''}${wig.note ? `，备注：${wig.note}` : ''}`,
+        result: '',
+        createdAt: now,
+        updatedAt: now,
+        history: [stamp('创建', '演出准备工作台快速创建维修单')]
+      };
+
+      db.repairs = db.repairs || [];
+      db.repairs.push(item);
+
+      const lendingBlocked = ['借出中', '归还待检查'].includes(wig.status);
+      if (!lendingBlocked && wig.status !== '需要维修' && wig.status !== '紧急维修') {
+        wig.status = '需要维修';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('需要维修', '工作台快速标记为需要维修'));
+      }
+
+      const relatedChanges = [];
+      if (JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'create', 'repairs', item.id, null, item, {
+        actionLabel: '工作台创建维修单',
+        relatedChanges
+      });
+
+      const message = lendingBlocked
+        ? '已创建维修单（假发处于借出/归还检查流程，状态将在归还后更新）'
+        : '已创建维修单';
+
+      await writeDb(db);
+      return res.json({ success: true, item, message });
+    }
+
+    if (actionType === 'mark-return' && lendingId) {
+      const lending = db.lendings?.find((l) => l.id === lendingId);
+      if (!lending) return res.status(404).json({ error: '借出记录不存在' });
+      if (lending.status !== '借出中') return res.status(409).json({ error: '只有借出中状态可以标记归还' });
+
+      const overdue = isLendingOverdue(lending);
+      if (overdue && !overdueReason) {
+        return res.status(400).json({ error: '该借出已逾期，请填写逾期说明', overdue: true });
+      }
+
+      const lendingBefore = deepClone(lending);
+      const wig = db.wigs?.find((w) => w.id === lending.wigId);
+      const wigBefore = wig ? deepClone(wig) : null;
+
+      const overdueNote = overdue && overdueReason ? `（逾期归还：${overdueReason}）` : '';
+
+      lending.status = '归还待检查';
+      lending.actualReturnDate = new Date().toISOString().split('T')[0];
+      lending.updatedAt = now;
+      if (overdue && overdueReason) {
+        lending.overdueReason = overdueReason;
+        lending.overdueMarkedAt = now;
+      }
+      lending.history = lending.history || [];
+      lending.history.unshift(stamp('提交归还', `工作台快捷标记归还待检查${overdueNote}`));
+
+      if (wig) {
+        wig.status = '归还待检查';
+        wig.updatedAt = now;
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('归还待检查', `工作台快捷标记${overdueNote}`));
+      }
+
+      const relatedChanges = [];
+      if (wig && wigBefore && JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'update', 'lendings', lending.id, lendingBefore, deepClone(lending), {
+        actionLabel: '工作台标记归还',
+        relatedChanges
+      });
+
+      await writeDb(db);
+      return res.json({ success: true, message: '已标记为归还待检查' });
+    }
+
+    if (actionType === 'generate-precheck' && wigId && performanceDate) {
+      const existing = (db.preChecklists || []).find(
+        (c) => c.wigId === wigId && c.performanceDate === performanceDate
+      );
+      if (existing) return res.status(409).json({ error: '该演出日检查任务已存在' });
+
+      const wig = db.wigs?.find((w) => w.id === wigId);
+      const schedule = { show, role, wigId };
+      const resolved = resolveCheckItems(db, schedule, wig);
+      const wigBefore = wig ? deepClone(wig) : null;
+
+      const item = {
+        id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+        performanceDate,
+        show: show || '',
+        role: role || '',
+        wigId,
+        status: '待检查',
+        checkItems: resolved.checkItems,
+        templateId: resolved.templateId,
+        templateSource: resolved.templateSource,
+        matchedTemplates: resolved.matchedTemplates,
+        findings: '',
+        suggestions: '',
+        checker: '',
+        checkedAt: '',
+        createdAt: now,
+        updatedAt: now,
+        history: [stamp('生成检查清单', `演出准备工作台生成，模板：${resolved.templateSource}`)]
+      };
+
+      db.preChecklists = db.preChecklists || [];
+      db.preChecklists.push(item);
+
+      if (wig) {
+        wig.history = wig.history || [];
+        wig.history.unshift(stamp('演出前检查生成', '工作台生成'));
+        wig.updatedAt = now;
+      }
+
+      const relatedChanges = [];
+      if (wig && wigBefore && JSON.stringify(wigBefore) !== JSON.stringify(wig)) {
+        relatedChanges.push({
+          collection: 'wigs',
+          targetId: wig.id,
+          before: wigBefore,
+          after: deepClone(wig)
+        });
+      }
+
+      createAuditLog(db, 'create', 'preChecklists', item.id, null, item, {
+        actionLabel: '工作台生成检查任务',
+        relatedChanges
+      });
+
+      await writeDb(db);
+      return res.json({ success: true, item, message: '已生成检查任务' });
+    }
+
+    res.status(400).json({ error: '无效的操作类型' });
+  } catch (error) {
+    res.status(500).json({ error: error.message || '操作失败' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`${config.title} running at http://localhost:${PORT}`);
 });

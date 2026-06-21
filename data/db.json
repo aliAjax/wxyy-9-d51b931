@@ -603,6 +603,25 @@
       ],
       "result": "维修已完成，更换了受损部件，测试通过",
       "note": "编辑测试-已更新维修结果"
+    },
+    {
+      "id": "repairs-1782038256085-a0c76",
+      "wigId": "wig-seed-1",
+      "type": "勾织",
+      "handler": "",
+      "status": "待处理",
+      "dueDate": "2026-07-03",
+      "details": "工作台快速创建：，备注：右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+      "result": "",
+      "createdAt": "2026-06-21T10:37:36.085Z",
+      "updatedAt": "2026-06-21T10:37:36.085Z",
+      "history": [
+        {
+          "at": "2026-06-21T10:37:36.085Z",
+          "action": "创建",
+          "note": "演出准备工作台快速创建维修单"
+        }
+      ]
     }
   ],
   "schedules": [
@@ -1306,6 +1325,39 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1782038256085-c6ea1",
+      "operationType": "create",
+      "collection": "repairs",
+      "targetId": "repairs-1782038256085-a0c76",
+      "targetLabel": "勾织",
+      "actionLabel": "工作台创建维修单",
+      "before": null,
+      "after": {
+        "id": "repairs-1782038256085-a0c76",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "",
+        "status": "待处理",
+        "dueDate": "2026-07-03",
+        "details": "工作台快速创建：，备注：右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+        "result": "",
+        "createdAt": "2026-06-21T10:37:36.085Z",
+        "updatedAt": "2026-06-21T10:37:36.085Z",
+        "history": [
+          {
+            "at": "2026-06-21T10:37:36.085Z",
+            "action": "创建",
+            "note": "演出准备工作台快速创建维修单"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建维修单：勾织",
+      "createdAt": "2026-06-21T10:37:36.085Z",
+      "undone": false,
+      "undoneAt": null
+    },
     {
       "id": "audit-1782032645648-2ba64",
       "operationType": "update",
