@@ -359,13 +359,6 @@ async function setTab(tabId) {
     await loadAuditLogs();
     renderAuditList();
   }
-
-  if (tabId === 'performanceWorkbench') {
-    const date = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
-    if (!state.performanceWorkbench.data || state.performanceWorkbench.date !== date) {
-      await loadPerformanceWorkbench(date);
-    }
-  }
 }
 
 function getPendingReviewCount() {
@@ -2470,8 +2463,15 @@ function renderPerformanceWorkbenchView(view) {
   </section>`;
 }
 
-async function loadPerformanceWorkbench(date) {
+async function loadPerformanceWorkbench(date, options = {}) {
   if (!date) return;
+  const { force = false } = options;
+  
+  if (!force && state.performanceWorkbench.loading) return;
+  if (!force && state.performanceWorkbench.data && state.performanceWorkbench.date === date) {
+    return;
+  }
+  
   state.performanceWorkbench.loading = true;
   state.performanceWorkbench.date = date;
   render();
@@ -2542,7 +2542,6 @@ async function load() {
 
   if (state.activeTab === 'performanceWorkbench' || !state.activeTab) {
     await loadPerformanceWorkbench(workbenchDate);
-    return;
   }
 
   render();
@@ -2584,7 +2583,14 @@ document.addEventListener('click', async (event) => {
   const consumableAdd = event.target.closest('[data-consumable-add]');
   const consumableRemove = event.target.closest('[data-consumable-remove]');
 
-  if (tab) setTab(tab.dataset.tab);
+  if (tab) {
+    const tabId = tab.dataset.tab;
+    await setTab(tabId);
+    if (tabId === 'performanceWorkbench') {
+      const date = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
+      await loadPerformanceWorkbench(date);
+    }
+  }
   if (consumableAdd) {
     event.preventDefault();
     const fieldEl = consumableAdd.closest('.consumable-list-field');
