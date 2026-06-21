@@ -961,11 +961,25 @@ function renderCrudView(view) {
       <button class="ghost date-reset-btn" id="date-reset-${view.id}" type="button">重置日期</button>
     </div>
   ` : '';
+
+  const smartRecommendSection = view.collection === 'repairs' ? `
+    <div class="smart-recommend-section form-smart-recommend">
+      <div class="smart-recommend-header">
+        <h4>智能推荐处理人</h4>
+        <button type="button" class="ghost small" id="create-recommend-refresh" data-view="${view.id}">刷新推荐</button>
+      </div>
+      <div class="smart-recommend-list" id="create-smart-recommend-${view.id}">
+        <div class="hint-text">请选择维修类型、截止日期和关联假发后，系统将智能推荐合适的处理人</div>
+      </div>
+    </div>
+  ` : '';
+
   return `<section class="view" id="${view.id}">
     <div class="grid">
       <form class="panel" data-create="${view.collection}" data-view="${view.id}">
         <h2>${escapeHtml(view.formTitle)}</h2>
         <div class="form-grid">${view.fields.map(formField).join('')}</div>
+        ${smartRecommendSection}
         <div class="actions"><button>${escapeHtml(view.submitLabel || '保存')}</button></div>
       </form>
       <div class="panel">
@@ -1077,6 +1091,81 @@ function renderDispatchCard(item, view, handlerId) {
     ${actions ? `<div class="actions">${actions}</div>` : ''}
     ${historyHtml(item)}
   </article>`;
+}
+
+function renderSmartRecommendList(recommendations) {
+  if (!recommendations || recommendations.length === 0) {
+    return '<div class="empty-text">暂无推荐人选</div>';
+  }
+
+  return recommendations.map((rec, index) => {
+    const rankBadge = index === 0
+      ? '<span class="rank-badge top">推荐</span>'
+      : `<span class="rank-badge">第 ${index + 1} 位</span>`;
+
+    let workloadTone = '';
+    if (rec.isOverloaded) workloadTone = 'danger';
+    else if (rec.workloadLevel >= 3) workloadTone = 'warning';
+    else if (rec.workloadLevel <= 1) workloadTone = 'ok';
+
+    const riskBadge = rec.isOverloaded
+      ? '<span class="pill bad">过载</span>'
+      : rec.hasOverdue
+        ? '<span class="pill warn">有超期</span>'
+        : '';
+
+    const reasonsHtml = rec.reasons
+      .map((r) => `<li>${escapeHtml(r)}</li>`)
+      .join('');
+
+    return `
+      <div class="smart-recommend-item ${workloadTone}" data-recommend-staff="${rec.id}">
+        <div class="recommend-head">
+          <div class="recommend-name">
+            ${rankBadge}
+            <strong>${escapeHtml(rec.name)}</strong>
+            ${riskBadge}
+          </div>
+          <div class="recommend-score">
+            <span class="score-label">匹配度</span>
+            <span class="score-value">${rec.score}</span>
+          </div>
+        </div>
+        <div class="recommend-specialty">${escapeHtml(rec.specialty || '未设置擅长工种')}</div>
+        <div class="recommend-stats">
+          <span class="stat-item">在办：${rec.activeCount} 项</span>
+          <span class="stat-item">超期：${rec.overdueCount} 项</span>
+          <span class="stat-item">状态：${escapeHtml(rec.workload)}</span>
+        </div>
+        <ul class="recommend-reasons">
+          ${reasonsHtml}
+        </ul>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadSmartRecommendations(type, dueDate, wigId, excludeHandlerId) {
+  const listEl = $('#smart-recommend-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div class="loading-text">正在计算推荐人选...</div>';
+
+  try {
+    const result = await api('/api/repairs/smart-assign', {
+      method: 'POST',
+      body: JSON.stringify({
+        type,
+        dueDate,
+        wigId,
+        excludeHandlerId
+      })
+    });
+
+    listEl.innerHTML = renderSmartRecommendList(result.recommendations);
+  } catch (error) {
+    listEl.innerHTML = `<div class="error-text">推荐计算失败：${escapeHtml(error.message)}</div>`;
+  }
 }
 
 function parseCSV(text) {
@@ -1308,6 +1397,8 @@ function renderDispatchBoardView(view) {
     staffColumns.unshift(unassigned);
   }
 
+  const totalOverloaded = staffColumns.filter((c) => c.id !== 'unassigned' && (c.repairs?.length || 0) > 6).length;
+
   return `<section class="view" id="${view.id}">
     <div class="dispatch-board-header">
       <h2>维修派工板</h2>
@@ -1324,18 +1415,42 @@ function renderDispatchBoardView(view) {
           <strong>${allStaff.length}</strong>
           <span>处理人员</span>
         </span>
+        ${totalOverloaded > 0 ? `
+          <span class="dispatch-stat warn">
+            <strong>${totalOverloaded}</strong>
+            <span>人员过载</span>
+          </span>
+        ` : ''}
       </div>
     </div>
     <div class="dispatch-board">
-      ${staffColumns.map((col) => `
-        <div class="dispatch-column" data-handler="${col.id}">
+      ${staffColumns.map((col) => {
+        const activeCount = col.repairs?.length || 0;
+        const isOverloaded = col.id !== 'unassigned' && activeCount > 6;
+        const isBusy = col.id !== 'unassigned' && activeCount > 4 && activeCount <= 6;
+        const hasOverdue = (col.overdueCount || 0) > 0;
+        let columnClass = 'dispatch-column';
+        if (isOverloaded) columnClass += ' overloaded';
+        else if (isBusy) columnClass += ' busy';
+        if (hasOverdue) columnClass += ' has-overdue';
+
+        let riskBadge = '';
+        if (isOverloaded) {
+          riskBadge = '<span class="risk-badge danger">过载风险</span>';
+        } else if (isBusy) {
+          riskBadge = '<span class="risk-badge warning">较繁忙</span>';
+        }
+
+        return `
+        <div class="${columnClass}" data-handler="${col.id}">
           <div class="dispatch-column-header">
             <div class="dispatch-column-title">
               <h3>${escapeHtml(col.name)}</h3>
               ${col.specialty ? `<span class="dispatch-specialty">${escapeHtml(col.specialty)}</span>` : ''}
+              ${riskBadge}
             </div>
             <div class="dispatch-column-counts">
-              <span class="pill">${col.repairs?.length || 0} 项</span>
+              <span class="pill">${activeCount} 项</span>
               ${col.overdueCount > 0 ? `<span class="pill bad">${col.overdueCount} 超期</span>` : ''}
             </div>
           </div>
@@ -1346,7 +1461,8 @@ function renderDispatchBoardView(view) {
             }
           </div>
         </div>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
     <div id="reassign-modal" class="modal">
       <div class="modal-content">
@@ -1356,6 +1472,15 @@ function renderDispatchBoardView(view) {
         </div>
         <div class="modal-body">
           <div id="reassign-repair-info"></div>
+          <div class="smart-recommend-section">
+            <div class="smart-recommend-header">
+              <h4>智能推荐</h4>
+              <button class="ghost small" id="refresh-recommend">刷新推荐</button>
+            </div>
+            <div id="smart-recommend-list" class="smart-recommend-list">
+              <div class="loading-text">正在计算推荐人选...</div>
+            </div>
+          </div>
           <label>选择处理人
             <select id="reassign-handler">
               <option value="">选择新的处理人</option>
@@ -2196,6 +2321,33 @@ document.addEventListener('click', async (event) => {
       modal.dataset.repairId = repairId;
       modal.classList.add('show');
     }
+
+    loadSmartRecommendations(repair.type, repair.dueDate, repair.wigId, repair.handler);
+  }
+
+  const refreshRecommendBtn = event.target.closest('#refresh-recommend');
+  if (refreshRecommendBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = $('#reassign-modal');
+    const repairId = modal?.dataset.repairId;
+    const repair = state.db.repairs?.find((r) => r.id === repairId);
+    if (repair) {
+      loadSmartRecommendations(repair.type, repair.dueDate, repair.wigId, repair.handler);
+    }
+  }
+
+  const recommendItem = event.target.closest('[data-recommend-staff]');
+  if (recommendItem) {
+    event.preventDefault();
+    event.stopPropagation();
+    const staffId = recommendItem.dataset.recommendStaff;
+    const handlerSelect = $('#reassign-handler');
+    if (handlerSelect) {
+      handlerSelect.value = staffId;
+    }
+    $$('.smart-recommend-item').forEach((el) => el.classList.remove('selected'));
+    recommendItem.classList.add('selected');
   }
 
   const modalClose = event.target.closest('[data-modal-close]');
@@ -2620,8 +2772,98 @@ document.addEventListener('submit', async (event) => {
   const createPath = form.dataset.create;
   await api(`/api/${createPath}`, { method: 'POST', body: JSON.stringify(payload) });
   form.reset();
+  if (view.collection === 'repairs') {
+    const recommendEl = document.getElementById(`create-smart-recommend-${view.id}`);
+    if (recommendEl) {
+      recommendEl.innerHTML = '<div class="hint-text">请选择维修类型、截止日期和关联假发后，系统将智能推荐合适的处理人</div>';
+    }
+  }
   await load();
   toast('已保存');
+});
+
+let _createRecommendDebounceTimer = null;
+
+function debounceCreateRecommend(form, viewId) {
+  if (_createRecommendDebounceTimer) {
+    clearTimeout(_createRecommendDebounceTimer);
+  }
+  _createRecommendDebounceTimer = setTimeout(() => {
+    loadCreateFormRecommendations(form, viewId);
+  }, 400);
+}
+
+async function loadCreateFormRecommendations(form, viewId) {
+  const listEl = document.getElementById(`create-smart-recommend-${viewId}`);
+  if (!listEl) return;
+
+  const type = form.querySelector('[name="type"]')?.value || '';
+  const dueDate = form.querySelector('[name="dueDate"]')?.value || '';
+  const wigId = form.querySelector('[name="wigId"]')?.value || '';
+
+  if (!type) {
+    listEl.innerHTML = '<div class="hint-text">请选择维修类型以获取推荐</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="loading-text">正在计算推荐人选...</div>';
+
+  try {
+    const result = await api('/api/repairs/smart-assign', {
+      method: 'POST',
+      body: JSON.stringify({
+        type,
+        dueDate: dueDate || undefined,
+        wigId: wigId || undefined
+      })
+    });
+
+    listEl.innerHTML = renderSmartRecommendList(result.recommendations);
+  } catch (error) {
+    listEl.innerHTML = `<div class="error-text">推荐计算失败：${escapeHtml(error.message)}</div>`;
+  }
+}
+
+document.addEventListener('change', (event) => {
+  const form = event.target.closest('[data-create][data-view]');
+  if (!form) return;
+  const viewId = form.dataset.view;
+  const view = state.config.views.find((v) => v.id === viewId);
+  if (!view || view.collection !== 'repairs') return;
+
+  const fieldName = event.target.name;
+  if (['type', 'dueDate', 'wigId'].includes(fieldName)) {
+    debounceCreateRecommend(form, viewId);
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const createRecommendItem = event.target.closest('#create-smart-recommend-repairs .smart-recommend-item');
+  if (createRecommendItem) {
+    event.preventDefault();
+    event.stopPropagation();
+    const staffId = createRecommendItem.dataset.recommendStaff;
+    const form = createRecommendItem.closest('[data-create]');
+    const handlerSelect = form?.querySelector('[name="handler"]');
+    if (handlerSelect) {
+      handlerSelect.value = staffId;
+    }
+    $$('.smart-recommend-item').forEach((el) => el.classList.remove('selected'));
+    createRecommendItem.classList.add('selected');
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const refreshBtn = event.target.closest('#create-recommend-refresh');
+  if (refreshBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const viewId = refreshBtn.dataset.view;
+    const form = document.querySelector(`[data-view="${viewId}"][data-create]`);
+    if (form) {
+      loadCreateFormRecommendations(form, viewId);
+    }
+  }
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));

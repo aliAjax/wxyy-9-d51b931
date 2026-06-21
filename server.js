@@ -1403,6 +1403,165 @@ app.get('/api/staff-stats', async (req, res) => {
   res.json(stats);
 });
 
+app.post('/api/repairs/smart-assign', async (req, res) => {
+  const db = await readDb();
+  const { type, dueDate, wigId, excludeHandlerId } = req.body || {};
+
+  if (!type) {
+    return res.status(400).json({ error: '请提供维修类型' });
+  }
+
+  const staff = db.staff || [];
+  const repairs = db.repairs || [];
+  const wigs = db.wigs || [];
+  const schedules = db.schedules || [];
+  const activeStatuses = ['待处理', '维修中', '待检查'];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const wig = wigId ? wigs.find((w) => w.id === wigId) : null;
+  const performanceDate = wig?.performanceDate || '';
+
+  const upcomingShows = schedules
+    .filter((s) => s.wigId === wigId && new Date(s.performanceDate) >= today)
+    .sort((a, b) => new Date(a.performanceDate) - new Date(b.performanceDate));
+  const nextShowDate = upcomingShows.length > 0 ? upcomingShows[0].performanceDate : performanceDate;
+
+  const candidates = [];
+
+  for (const person of staff) {
+    if (excludeHandlerId && person.id === excludeHandlerId) continue;
+
+    const personRepairs = repairs.filter((r) => r.handler === person.id);
+    const activeRepairs = personRepairs.filter((r) => activeStatuses.includes(r.status));
+    const overdueRepairs = activeRepairs.filter((r) => {
+      if (!r.dueDate) return false;
+      const due = new Date(r.dueDate);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    });
+
+    let specialtyScore = 0;
+    let specialtyMatch = false;
+    const specialtyText = person.specialty || '';
+    const specialties = specialtyText.split(/[、,，]/).map((s) => s.trim()).filter(Boolean);
+
+    if (specialties.includes(type)) {
+      specialtyScore = 40;
+      specialtyMatch = true;
+    } else if (specialties.some((s) => type.includes(s) || s.includes(type))) {
+      specialtyScore = 20;
+      specialtyMatch = true;
+    } else {
+      specialtyScore = 0;
+    }
+
+    const activeCount = activeRepairs.length;
+    let workloadScore = 0;
+    if (activeCount === 0) workloadScore = 30;
+    else if (activeCount <= 2) workloadScore = 25;
+    else if (activeCount <= 4) workloadScore = 15;
+    else if (activeCount <= 6) workloadScore = 5;
+    else workloadScore = -10;
+
+    const overdueCount = overdueRepairs.length;
+    const overduePenalty = overdueCount * 8;
+
+    let urgencyScore = 0;
+    let daysUntilDue = null;
+    if (dueDate) {
+      const due = new Date(dueDate);
+      due.setHours(0, 0, 0, 0);
+      daysUntilDue = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      if (daysUntilDue < 0) {
+        urgencyScore = 15;
+      } else if (daysUntilDue <= 1) {
+        urgencyScore = 12;
+      } else if (daysUntilDue <= 3) {
+        urgencyScore = 8;
+      } else if (daysUntilDue <= 7) {
+        urgencyScore = 4;
+      }
+    }
+
+    let showUrgencyScore = 0;
+    let daysUntilShow = null;
+    if (nextShowDate) {
+      const showDate = new Date(nextShowDate);
+      showDate.setHours(0, 0, 0, 0);
+      daysUntilShow = Math.ceil((showDate - today) / (1000 * 60 * 60 * 24));
+      if (daysUntilShow < 0) {
+        showUrgencyScore = 5;
+      } else if (daysUntilShow <= 3) {
+        showUrgencyScore = 10;
+      } else if (daysUntilShow <= 7) {
+        showUrgencyScore = 5;
+      } else if (daysUntilShow <= 14) {
+        showUrgencyScore = 2;
+      }
+    }
+
+    const totalScore = specialtyScore + workloadScore + urgencyScore + showUrgencyScore - overduePenalty;
+
+    const reasons = [];
+    if (specialtyMatch) {
+      reasons.push(`擅长「${type}」类维修`);
+    } else {
+      reasons.push('非擅长工种但可处理');
+    }
+    reasons.push(`当前在办 ${activeCount} 项`);
+    if (overdueCount > 0) {
+      reasons.push(`${overdueCount} 项超期任务`);
+    }
+    if (daysUntilDue !== null && daysUntilDue <= 3) {
+      reasons.push(`维修截止日期较紧（${daysUntilDue} 天）`);
+    }
+    if (daysUntilShow !== null && daysUntilShow <= 7) {
+      reasons.push(`关联演出临近（${daysUntilShow} 天）`);
+    }
+
+    const isOverloaded = activeCount > 6;
+    const hasOverdue = overdueCount > 0;
+
+    candidates.push({
+      id: person.id,
+      name: person.name,
+      specialty: person.specialty,
+      contact: person.contact,
+      activeCount,
+      overdueCount,
+      score: totalScore,
+      reasons,
+      isOverloaded,
+      hasOverdue,
+      workload: activeCount === 0 ? '空闲' :
+        activeCount <= 2 ? '轻松' :
+        activeCount <= 4 ? '适中' :
+        activeCount <= 6 ? '繁忙' : '过载',
+      workloadLevel: activeCount === 0 ? 0 :
+        activeCount <= 2 ? 1 :
+        activeCount <= 4 ? 2 :
+        activeCount <= 6 ? 3 : 4
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  const topRecommendations = candidates.slice(0, 5);
+
+  res.json({
+    recommendations: topRecommendations,
+    allCandidates: candidates,
+    input: {
+      type,
+      dueDate,
+      wigId,
+      nextShowDate,
+      wigName: wig ? [wig.role, wig.show].filter(Boolean).join(' / ') : ''
+    }
+  });
+});
+
 app.post('/api/wigs/batch-import', async (req, res) => {
   const db = await readDb();
   const rows = req.body?.rows || [];

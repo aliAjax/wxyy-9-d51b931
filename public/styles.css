@@ -2037,3 +2037,233 @@ td.import-col-num {
     grid-template-columns: 1fr;
   }
 }
+
+.dispatch-stat.warn strong {
+  color: var(--bad);
+}
+
+.dispatch-column.overloaded .dispatch-column-header {
+  background: linear-gradient(135deg, rgba(220, 53, 69, .08), rgba(220, 53, 69, .04));
+  border-bottom-color: rgba(220, 53, 69, .2);
+}
+
+.dispatch-column.overloaded {
+  border-color: rgba(220, 53, 69, .3);
+  box-shadow: 0 0 0 1px rgba(220, 53, 69, .1);
+}
+
+.dispatch-column.busy .dispatch-column-header {
+  background: linear-gradient(135deg, rgba(255, 152, 0, .08), rgba(255, 152, 0, .04));
+}
+
+.dispatch-column.has-overdue .dispatch-column-header {
+  border-left: 4px solid var(--bad);
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+
+.risk-badge.danger {
+  background: rgba(220, 53, 69, .12);
+  color: #c62828;
+}
+
+.risk-badge.warning {
+  background: rgba(255, 152, 0, .15);
+  color: #e65100;
+}
+
+.smart-recommend-section {
+  margin: 16px 0;
+  padding: 14px;
+  background: #f8f5ee;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.form-smart-recommend {
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+.smart-recommend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.smart-recommend-header h4 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.smart-recommend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.smart-recommend-item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.smart-recommend-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(17, 97, 92, .1);
+}
+
+.smart-recommend-item.selected {
+  border-color: var(--accent);
+  background: rgba(17, 97, 92, .05);
+  box-shadow: 0 0 0 2px rgba(17, 97, 92, .2);
+}
+
+.smart-recommend-item.danger {
+  border-color: rgba(220, 53, 69, .3);
+}
+
+.smart-recommend-item.warning {
+  border-color: rgba(255, 152, 0, .4);
+}
+
+.smart-recommend-item.ok {
+  border-color: rgba(67, 160, 71, .3);
+}
+
+.recommend-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.recommend-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.recommend-name strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.recommend-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.score-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.rank-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #e0e0e0;
+  color: #666;
+}
+
+.rank-badge.top {
+  background: linear-gradient(135deg, #11615c, #1a8a7d);
+  color: #fff;
+}
+
+.recommend-specialty {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.recommend-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.recommend-reasons {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.recommend-reasons li {
+  margin: 2px 0;
+}
+
+.loading-text,
+.empty-text,
+.error-text,
+.hint-text {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.error-text {
+  color: var(--bad);
+}
+
+.hint-text {
+  background: #fff;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+}
+
+button.ghost.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  .smart-recommend-section {
+    padding: 10px;
+  }
+
+  .recommend-head {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .recommend-score {
+    align-items: flex-start;
+  }
+
+  .recommend-stats {
+    gap: 8px;
+  }
+}
