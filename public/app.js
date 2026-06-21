@@ -3447,7 +3447,7 @@ document.addEventListener('click', async (event) => {
     event.preventDefault();
     event.stopPropagation();
     const date = state.performanceWorkbench.date || new Date().toISOString().split('T')[0];
-    await loadPerformanceWorkbench(date);
+    await loadPerformanceWorkbench(date, { force: true });
     toast('已刷新');
   }
 
