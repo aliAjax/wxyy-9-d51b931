@@ -666,9 +666,25 @@ app.patch('/api/:collection/:id', async (req, res) => {
 
   const itemBefore = AUDIT_COLLECTIONS.includes(collection) ? deepClone(item) : null;
 
-  const body = { ...req.body };
+  let body = { ...req.body };
   const historyAction = body.historyAction;
   delete body.historyAction;
+
+  const EDITABLE_FIELDS = {
+    wigs: ['location', 'note'],
+    repairs: ['handler', 'dueDate', 'details', 'consumables', 'result', 'note']
+  };
+
+  if (EDITABLE_FIELDS[collection]) {
+    const allowed = EDITABLE_FIELDS[collection];
+    const filtered = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) {
+        filtered[key] = body[key];
+      }
+    }
+    body = filtered;
+  }
 
   if (collection === 'repairs' && body.consumables !== undefined) {
     const consumables = Array.isArray(body.consumables)
