@@ -1955,9 +1955,17 @@ app.get('/api/availability-warnings', async (req, res) => {
 
         saved.status = WARNING_STATUS.PENDING;
         saved.riskKey = newRiskKey;
+        saved.handler = '';
+        saved.handleNote = '';
+        saved.handledAt = '';
         saved.updatedAt = now;
         saved.history = saved.history || [];
-        const autoReopenNote = `风险条件已变化，自动重新打开。原风险签名：${oldRiskKey} → 新风险签名：${newRiskKey}`;
+        const previousHandlerName = savedBefore.handler ? (staff.find((s) => s.id === savedBefore.handler)?.name || savedBefore.handler) : '';
+        const previousHandleInfo = [
+          previousHandlerName ? `原处理人：${previousHandlerName}` : '',
+          savedBefore.handleNote ? `原备注：${savedBefore.handleNote}` : ''
+        ].filter(Boolean).join('，');
+        const autoReopenNote = `风险条件已变化，自动重新打开。${previousHandleInfo ? `${previousHandleInfo}。` : ''}原风险签名：${oldRiskKey} → 新风险签名：${newRiskKey}`;
         saved.history.unshift(stamp('自动重开', autoReopenNote));
 
         createAuditLog(db, 'update', 'warningStatuses', saved.id, savedBefore, deepClone(saved), {
