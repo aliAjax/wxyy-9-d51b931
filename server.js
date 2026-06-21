@@ -3504,6 +3504,148 @@ app.post('/api/performance-workbench/action', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`${config.title} running at http://localhost:${PORT}`);
+const BATCH_IMPORT_REQUIRED_FIELDS = ['role', 'show', 'color', 'location', 'performanceDate'];
+
+function processBatchImport(db, rows, duplicateModes, options = {}) {
+  const now = options.now || new Date().toISOString();
+  const idGenerator = options.idGenerator || (() => `wigs-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`);
+  const requiredFields = BATCH_IMPORT_REQUIRED_FIELDS;
+
+  let createdCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let failCount = 0;
+  const failures = [];
+  const createdItems = [];
+  const updatedItems = [];
+  const skippedItems = [];
+  let hasWrite = false;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const missingFields = requiredFields.filter((f) => !row[f] || String(row[f]).trim() === '');
+
+    if (missingFields.length > 0) {
+      failCount++;
+      failures.push({
+        row: i + 1,
+        data: row,
+        missingFields
+      });
+      continue;
+    }
+
+    const mode = duplicateModes[i] || 'new';
+    const role = String(row.role).trim();
+    const show = String(row.show).trim();
+    const performanceDate = String(row.performanceDate).trim();
+    const location = String(row.location).trim();
+
+    const existing = findDuplicateWig(db, role, show, performanceDate, location);
+
+    if (existing) {
+      if (mode === 'skip') {
+        skippedCount++;
+        skippedItems.push({ row: i + 1, existingId: existing.id, label: `${role} / ${show}` });
+        continue;
+      }
+
+      if (mode === 'overwrite') {
+        const before = deepClone(existing);
+        const newNote = row.note ? String(row.note).trim() : existing.note;
+        const newStatus = row.status ? String(row.status).trim() : existing.status;
+
+        const changes = [];
+        if (newStatus !== existing.status) changes.push(`状态：${existing.status} → ${newStatus}`);
+        if (newNote !== existing.note) changes.push('备注已更新');
+
+        existing.note = newNote;
+        existing.status = newStatus;
+        existing.updatedAt = now;
+        existing.history = existing.history || [];
+        existing.history.unshift(stamp('批量导入更新', changes.length > 0 ? changes.join('；') : '无字段变更'));
+
+        updatedCount++;
+        updatedItems.push({ row: i + 1, id: existing.id, label: `${role} / ${show}`, changes });
+        hasWrite = true;
+
+        createAuditLog(db, 'update', 'wigs', existing.id, before, deepClone(existing), {
+          actionLabel: '批量导入更新'
+        });
+        continue;
+      }
+    }
+
+    const item = {
+      id: idGenerator(),
+      role,
+      show,
+      color: String(row.color).trim(),
+      capSize: row.capSize ? String(row.capSize).trim() : 'M',
+      hairline: row.hairline ? String(row.hairline).trim() : '普通前网',
+      location,
+      performanceDate,
+      status: row.status ? String(row.status).trim() : '可演出',
+      note: row.note ? String(row.note).trim() : '',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp('批量导入创建', row.note ? String(row.note).trim() : 'CSV 批量导入')]
+    };
+
+    db.wigs.push(item);
+    createdItems.push(item);
+    createdCount++;
+    hasWrite = true;
+
+    createAuditLog(db, 'create', 'wigs', item.id, null, item, {
+      actionLabel: existing ? '批量导入创建（重复新建）' : '批量导入创建'
+    });
+  }
+
+  return {
+    created: createdCount,
+    updated: updatedCount,
+    skipped: skippedCount,
+    fail: failCount,
+    success: createdCount + updatedCount,
+    total: rows.length,
+    failures,
+    createdItems,
+    updatedItems,
+    skippedItems,
+    hasWrite
+  };
+}
+
+app.post('/api/wigs/batch-import', async (req, res) => {
+  const db = await readDb();
+  const rows = req.body?.rows || [];
+  const duplicateModes = req.body?.duplicateModes || [];
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ error: '请提供有效的导入数据' });
+  }
+
+  const result = processBatchImport(db, rows, duplicateModes);
+
+  if (result.hasWrite) {
+    await writeDb(db);
+  }
+
+  const { hasWrite: _hasWrite, ...response } = result;
+  res.json(response);
 });
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`${config.title} running at http://localhost:${PORT}`);
+  });
+} else {
+  module.exports = {
+    findDuplicateWig,
+    processBatchImport,
+    deepClone,
+    stamp,
+    BATCH_IMPORT_REQUIRED_FIELDS
+  };
+}
