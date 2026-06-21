@@ -647,6 +647,34 @@
           "sourceCollection": "repairs"
         }
       ]
+    },
+    {
+      "id": "repairs-1782047944945-2e49f",
+      "wigId": "wig-seed-2",
+      "type": "勾织",
+      "handler": "林岚",
+      "details": "测试撤销更新场景",
+      "consumables": [],
+      "createdAt": "2026-06-21T13:19:04.945Z",
+      "updatedAt": "2026-06-21T13:19:04.945Z",
+      "history": [
+        {
+          "at": "2026-06-21T13:19:04.945Z",
+          "action": "创建",
+          "note": "",
+          "source": "维修流转",
+          "sourceId": "repairs-1782047944945-2e49f",
+          "sourceCollection": "repairs"
+        },
+        {
+          "at": "2026-06-21T13:19:54.071Z",
+          "action": "更新备注",
+          "note": "添加备注测试撤销更新保留history",
+          "source": "维修流转",
+          "sourceId": "repairs-1782047944945-2e49f",
+          "sourceCollection": "repairs"
+        }
+      ]
     }
   ],
   "schedules": [
@@ -1442,6 +1470,122 @@
       ]
     }
   ],
-  "auditLogs": [],
+  "auditLogs": [
+    {
+      "id": "audit-1782047994071-53a5c",
+      "operationType": "update",
+      "collection": "repairs",
+      "targetId": "repairs-1782047944945-2e49f",
+      "targetLabel": "勾织",
+      "actionLabel": "",
+      "before": {
+        "id": "repairs-1782047944945-2e49f",
+        "wigId": "wig-seed-2",
+        "type": "勾织",
+        "handler": "林岚",
+        "details": "测试撤销更新场景",
+        "consumables": [],
+        "createdAt": "2026-06-21T13:19:04.945Z",
+        "updatedAt": "2026-06-21T13:19:04.945Z",
+        "history": [
+          {
+            "at": "2026-06-21T13:19:04.945Z",
+            "action": "创建",
+            "note": ""
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-1782047944945-2e49f",
+        "wigId": "wig-seed-2",
+        "type": "勾织",
+        "handler": "林岚",
+        "details": "测试撤销更新场景",
+        "consumables": [],
+        "createdAt": "2026-06-21T13:19:04.945Z",
+        "updatedAt": "2026-06-21T13:19:54.071Z",
+        "history": [
+          {
+            "at": "2026-06-21T13:19:54.071Z",
+            "action": "更新备注",
+            "note": "添加备注测试撤销更新保留history"
+          },
+          {
+            "at": "2026-06-21T13:19:04.945Z",
+            "action": "创建",
+            "note": ""
+          }
+        ],
+        "note": "添加备注测试撤销更新保留history"
+      },
+      "relatedChanges": [],
+      "summary": "更新维修单（备注）：勾织",
+      "createdAt": "2026-06-21T13:19:54.071Z",
+      "undone": true,
+      "undoneAt": "2026-06-21T13:20:18.513Z"
+    },
+    {
+      "id": "audit-1782047944945-29f10",
+      "operationType": "create",
+      "collection": "repairs",
+      "targetId": "repairs-1782047944945-2e49f",
+      "targetLabel": "勾织",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "repairs-1782047944945-2e49f",
+        "wigId": "wig-seed-2",
+        "type": "勾织",
+        "handler": "林岚",
+        "details": "测试撤销更新场景",
+        "consumables": [],
+        "createdAt": "2026-06-21T13:19:04.945Z",
+        "updatedAt": "2026-06-21T13:19:04.945Z",
+        "history": [
+          {
+            "at": "2026-06-21T13:19:04.945Z",
+            "action": "创建",
+            "note": ""
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建维修单：勾织",
+      "createdAt": "2026-06-21T13:19:04.945Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782047896776-76a5d",
+      "operationType": "create",
+      "collection": "repairs",
+      "targetId": "repairs-1782047896776-50a31",
+      "targetLabel": "测试维修",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "repairs-1782047896776-50a31",
+        "wigId": "wig-seed-2",
+        "type": "测试维修",
+        "handler": "测试员",
+        "details": "这是一个测试维修单，用于验证撤销创建后时间线是否保留事件",
+        "consumables": [],
+        "createdAt": "2026-06-21T13:18:16.776Z",
+        "updatedAt": "2026-06-21T13:18:16.776Z",
+        "history": [
+          {
+            "at": "2026-06-21T13:18:16.776Z",
+            "action": "创建",
+            "note": ""
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建维修单：测试维修",
+      "createdAt": "2026-06-21T13:18:16.776Z",
+      "undone": true,
+      "undoneAt": "2026-06-21T13:18:39.438Z"
+    }
+  ],
   "warningStatuses": []
 }

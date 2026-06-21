@@ -262,30 +262,96 @@ function extractConsumableEvents(db, wigId) {
   return events;
 }
 
-function correlateAuditUndo(db, events, wigId) {
-  const relatedAuditLogs = (db.auditLogs || []).filter(log => {
-    if (log.collection === 'wigs' && log.targetId === wigId) return true;
-    if (TIMELINE_COLLECTION_CONFIG[log.collection]) {
-      const items = db[log.collection] || [];
-      const item = items.find(i => i.id === log.targetId);
-      if (item) {
-        const config = TIMELINE_COLLECTION_CONFIG[log.collection];
-        if (config && config.matchFn(item, wigId)) return true;
-      }
+function isAuditLogRelatedToWig(log, wigId, db) {
+  const checkItem = (collection, targetId) => {
+    if (collection === 'wigs' && targetId === wigId) return true;
+    const config = TIMELINE_COLLECTION_CONFIG[collection];
+    if (!config) return false;
+    const items = db[collection] || [];
+    const item = items.find(i => i.id === targetId);
+    if (item) {
+      return config.matchFn(item, wigId);
+    }
+    const snapshot = log.after || log.before;
+    if (snapshot && snapshot.id === targetId) {
+      if (config.wigIdField && snapshot[config.wigIdField] === wigId) return true;
+      if (collection === 'wigs' && snapshot.id === wigId) return true;
     }
     for (const rc of log.relatedChanges || []) {
-      if (rc.collection === 'wigs' && rc.targetId === wigId) return true;
-      if (TIMELINE_COLLECTION_CONFIG[rc.collection]) {
-        const items = db[rc.collection] || [];
-        const item = items.find(i => i.id === rc.targetId);
-        if (item) {
-          const config = TIMELINE_COLLECTION_CONFIG[rc.collection];
-          if (config && config.matchFn(item, wigId)) return true;
+      if (rc.collection === collection && rc.targetId === targetId) {
+        const rcSnapshot = rc.after || rc.before;
+        if (rcSnapshot) {
+          if (config.wigIdField && rcSnapshot[config.wigIdField] === wigId) return true;
+          if (collection === 'wigs' && rcSnapshot.id === wigId) return true;
         }
       }
     }
     return false;
-  });
+  };
+  if (checkItem(log.collection, log.targetId)) return true;
+  for (const rc of log.relatedChanges || []) {
+    if (rc.collection === 'wigs' && rc.targetId === wigId) return true;
+    const rcConfig = TIMELINE_COLLECTION_CONFIG[rc.collection];
+    if (rcConfig) {
+      const rcItems = db[rc.collection] || [];
+      const rcItem = rcItems.find(i => i.id === rc.targetId);
+      if (rcItem && rcConfig.matchFn(rcItem, wigId)) return true;
+      const rcSnapshot = rc.after || rc.before;
+      if (rcSnapshot) {
+        if (rcConfig.wigIdField && rcSnapshot[rcConfig.wigIdField] === wigId) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function extractEventsFromUndoneAuditLogs(db, wigId) {
+  const events = [];
+  const undoneLogs = (db.auditLogs || []).filter(log =>
+    log.undone && isAuditLogRelatedToWig(log, wigId, db)
+  );
+  for (const log of undoneLogs) {
+    const allSnapshots = [];
+    if (log.operationType === 'create' && log.after) {
+      allSnapshots.push({
+        collection: log.collection,
+        snapshot: log.after
+      });
+    }
+    for (const rc of log.relatedChanges || []) {
+      if (rc.before === null || rc.before === undefined) {
+        if (rc.after) {
+          allSnapshots.push({
+            collection: rc.collection,
+            snapshot: rc.after
+          });
+        }
+      }
+    }
+    for (const { collection, snapshot } of allSnapshots) {
+      const config = TIMELINE_COLLECTION_CONFIG[collection];
+      if (!config) continue;
+      const wigIdField = config.wigIdField;
+      if (wigIdField && snapshot[wigIdField] !== wigId) continue;
+      if (collection === 'wigs' && snapshot.id !== wigId) continue;
+      const label = getTargetLabel(collection, snapshot);
+      const history = snapshot.history || [];
+      for (const h of history) {
+        const evt = buildTimelineEvent(h, collection, label, snapshot.id);
+        evt.undone = true;
+        evt.undoneAt = log.undoneAt;
+        evt.auditLogId = log.id;
+        events.push(evt);
+      }
+    }
+  }
+  return events;
+}
+
+function correlateAuditUndo(db, events, wigId) {
+  const relatedAuditLogs = (db.auditLogs || []).filter(log =>
+    isAuditLogRelatedToWig(log, wigId, db)
+  );
 
   const undoneLogMap = new Map();
   for (const log of relatedAuditLogs) {
@@ -510,7 +576,27 @@ function undoAuditLog(db, auditLog) {
       }
     } else {
       if (idx !== -1 && bf) {
-        db[col][idx] = deepClone(bf);
+        const restored = deepClone(bf);
+        const currentHistory = db[col][idx].history || [];
+        const beforeHistory = bf.history || [];
+        const afterHistory = af ? (af.history || []) : [];
+        const mergedHistory = [...beforeHistory];
+        const existingKeys = new Set(beforeHistory.map(h => `${h.at}-${h.action}-${h.note || ''}`));
+        for (const h of afterHistory) {
+          const key = `${h.at}-${h.action}-${h.note || ''}`;
+          if (!existingKeys.has(key)) {
+            mergedHistory.push(h);
+            existingKeys.add(key);
+          }
+        }
+        for (const h of currentHistory) {
+          const key = `${h.at}-${h.action}-${h.note || ''}`;
+          if (!existingKeys.has(key)) {
+            mergedHistory.push(h);
+          }
+        }
+        restored.history = mergedHistory;
+        db[col][idx] = restored;
       }
     }
   }
@@ -541,6 +627,15 @@ app.get('/api/wigs/:id/timeline', async (req, res) => {
   }
 
   events = events.concat(extractConsumableEvents(db, id));
+
+  events = events.concat(extractEventsFromUndoneAuditLogs(db, id));
+
+  const seenEventIds = new Set();
+  events = events.filter(e => {
+    if (seenEventIds.has(e.id)) return false;
+    seenEventIds.add(e.id);
+    return true;
+  });
 
   events = correlateAuditUndo(db, events, id);
 
