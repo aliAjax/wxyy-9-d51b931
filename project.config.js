@@ -230,11 +230,13 @@ module.exports = {
       titleFields: ['type'],
       relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },
       summaryFields: ['details', 'result'],
+      consumablesField: 'consumables',
       detailFields: [
         { label: '处理人', name: 'handler', type: 'relation', collection: 'staff', labelFields: ['name'] },
         { label: '截止日期', name: 'dueDate' },
         { label: '状态', name: 'status' },
-        { label: '结果', name: 'result' }
+        { label: '结果', name: 'result' },
+        { label: '耗材清单', name: 'consumables', type: 'consumableList' }
       ],
       fields: [
         { label: '假发', name: 'wigId', type: 'relation', collection: 'wigs', labelFields: ['role', 'show'], required: true, wide: true },
@@ -243,6 +245,7 @@ module.exports = {
         { label: '截止日期', name: 'dueDate', type: 'date', required: true },
         { label: '状态', name: 'status', type: 'select', options: ['待处理', '维修中', '待检查', '已完成'] },
         { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
+        { label: '预计使用耗材', name: 'consumables', type: 'consumableList', wide: true },
         { label: '结果', name: 'result', type: 'textarea', wide: true }
       ]
     },

@@ -159,6 +159,31 @@ function formField(field) {
     }
     return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${optionList(items, field.labelFields)}</select></label>`;
   }
+  if (field.type === 'consumableList') {
+    const consumables = state.db.consumables || [];
+    const optionsHtml = consumables.map((c) => {
+      const stockInfo = getStockStatus(c);
+      return `<option value="${c.id}">${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
+    }).join('');
+    return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
+      <label class="consumable-field-label">${field.label}</label>
+      <div class="consumable-rows" data-consumable-rows>
+      </div>
+      <button type="button" class="ghost consumable-add-btn" data-consumable-add>
+        + 添加耗材
+      </button>
+      <template data-consumable-row-template>
+        <div class="consumable-row">
+          <select class="consumable-select" data-consumable-select>
+            <option value="">选择耗材</option>
+            ${optionsHtml}
+          </select>
+          <input type="number" class="consumable-qty" data-consumable-qty value="1" min="1" placeholder="数量">
+          <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
+        </div>
+      </template>
+    </div>`;
+  }
   return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" ${value} ${required}></label>`;
 }
 
@@ -189,6 +214,20 @@ function values(form, view) {
   const payload = Object.fromEntries(new FormData(form).entries());
   for (const field of view.fields) {
     if (field.type === 'number') payload[field.name] = Number(payload[field.name] || 0);
+    if (field.type === 'consumableList') {
+      const rows = form.querySelectorAll('[data-consumable-rows] .consumable-row');
+      const consumables = [];
+      rows.forEach((row) => {
+        const select = row.querySelector('.consumable-select');
+        const qtyInput = row.querySelector('.consumable-qty');
+        const consumableId = select?.value;
+        const quantity = Number(qtyInput?.value || 0);
+        if (consumableId && quantity > 0) {
+          consumables.push({ consumableId, quantity });
+        }
+      });
+      payload[field.name] = consumables;
+    }
   }
   return { ...view.defaults, ...payload };
 }
@@ -328,6 +367,31 @@ function renderCard(item, collection, view) {
       value = pillValue || '-';
     } else if (field.type === 'relation') {
       value = relationLabel(field, item[field.name]);
+    } else if (field.type === 'consumableList') {
+      const list = item[field.name] || [];
+      if (list.length === 0) {
+        value = '无';
+      } else {
+        isHtml = true;
+        const listHtml = list.map((c) => {
+          const consumable = state.db.consumables?.find((x) => x.id === c.consumableId);
+          const name = consumable?.name || c.consumableId;
+          const stock = consumable ? Number(consumable.stock) || 0 : null;
+          let stockTone = '';
+          let stockBadge = '';
+          if (stock !== null) {
+            if (stock <= 0) stockTone = 'bad';
+            else if (stock < (consumable.safeStock || 0)) stockTone = 'warn';
+            else stockTone = 'ok';
+            stockBadge = `<span class="pill ${stockTone}" style="margin-left:4px;font-size:11px;">库 ${stock}</span>`;
+          }
+          return `<div class="consumable-list-item"><span>${escapeHtml(name)} × ${c.quantity}</span>${stockBadge}</div>`;
+        }).join('');
+        return `<div class="detail-consumable-field">
+          <div class="consumable-field-label" style="color:var(--muted);font-size:13px;font-weight:700;margin-bottom:4px;">${escapeHtml(field.label)}</div>
+          <div class="consumable-card-list">${listHtml}</div>
+        </div>`;
+      }
     } else {
       value = item[field.name];
     }
@@ -1651,8 +1715,25 @@ document.addEventListener('click', async (event) => {
   const auditUndoBtn = event.target.closest('[data-audit-undo]');
   const auditLoadMoreBtn = event.target.closest('[data-audit-load-more]');
   const auditExpandBtn = event.target.closest('[data-audit-expand]');
+  const consumableAdd = event.target.closest('[data-consumable-add]');
+  const consumableRemove = event.target.closest('[data-consumable-remove]');
 
   if (tab) setTab(tab.dataset.tab);
+  if (consumableAdd) {
+    event.preventDefault();
+    const fieldEl = consumableAdd.closest('.consumable-list-field');
+    if (!fieldEl) return;
+    const template = fieldEl.querySelector('[data-consumable-row-template]');
+    const rowsContainer = fieldEl.querySelector('[data-consumable-rows]');
+    if (!template || !rowsContainer) return;
+    const clone = template.content.cloneNode(true);
+    rowsContainer.appendChild(clone);
+  }
+  if (consumableRemove) {
+    event.preventDefault();
+    const row = consumableRemove.closest('.consumable-row');
+    if (row) row.remove();
+  }
   if (action) {
     try {
       await api(`/api/action/${action.dataset.action}/${action.dataset.id}`, { method: 'POST' });

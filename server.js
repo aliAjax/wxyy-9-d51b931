@@ -583,12 +583,30 @@ app.post('/api/:collection', async (req, res) => {
   const { collection } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
   const now = new Date().toISOString();
+  const body = { ...req.body };
+
+  if (collection === 'repairs') {
+    const consumables = Array.isArray(body.consumables)
+      ? body.consumables.filter(c => c && c.consumableId && Number(c.quantity) > 0)
+      : [];
+    body.consumables = consumables;
+  }
+
+  let historyNote = body.note || body.memo || '';
+  if (collection === 'repairs' && body.consumables && body.consumables.length > 0) {
+    const names = body.consumables.map(c => {
+      const cItem = db.consumables?.find(x => x.id === c.consumableId);
+      return `${cItem?.name || c.consumableId} × ${c.quantity}`;
+    }).join('、');
+    historyNote = historyNote ? `${historyNote}；预计使用耗材：${names}` : `预计使用耗材：${names}`;
+  }
+
   const item = {
     id: `${collection}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
-    ...req.body,
+    ...body,
     createdAt: now,
     updatedAt: now,
-    history: [stamp('创建', req.body.note || req.body.memo || '')]
+    history: [stamp('创建', historyNote)]
   };
   db[collection].push(item);
 
@@ -611,14 +629,46 @@ app.patch('/api/:collection/:id', async (req, res) => {
     return res.status(409).json({ error: '不能直接修改状态字段，请使用专用动作接口' });
   }
 
+  if (collection === 'repairs' && item.status === '已完成') {
+    return res.status(409).json({ error: '已完成的维修单不能修改' });
+  }
+
   const itemBefore = AUDIT_COLLECTIONS.includes(collection) ? deepClone(item) : null;
 
-  const historyAction = req.body.historyAction;
-  delete req.body.historyAction;
-  Object.assign(item, req.body, { updatedAt: new Date().toISOString() });
+  const body = { ...req.body };
+  const historyAction = body.historyAction;
+  delete body.historyAction;
+
+  if (collection === 'repairs' && body.consumables !== undefined) {
+    body.consumables = Array.isArray(body.consumables)
+      ? body.consumables.filter(c => c && c.consumableId && Number(c.quantity) > 0)
+      : [];
+  }
+
+  Object.assign(item, body, { updatedAt: new Date().toISOString() });
   item.history = item.history || [];
-  if (historyAction || req.body.note || req.body.memo || req.body.status) {
-    item.history.unshift(stamp(historyAction || req.body.status || '更新', req.body.note || req.body.memo || ''));
+
+  let historyNote = body.note || body.memo || '';
+  if (collection === 'repairs' && body.consumables !== undefined) {
+    const beforeNames = (itemBefore?.consumables || [])
+      .map(c => {
+        const cItem = db.consumables?.find(x => x.id === c.consumableId);
+        return `${cItem?.name || c.consumableId} × ${c.quantity}`;
+      }).join('、');
+    const afterNames = body.consumables
+      .map(c => {
+        const cItem = db.consumables?.find(x => x.id === c.consumableId);
+        return `${cItem?.name || c.consumableId} × ${c.quantity}`;
+      }).join('、');
+    if (beforeNames !== afterNames) {
+      historyNote = historyNote
+        ? `${historyNote}；耗材变更：${beforeNames || '无'} → ${afterNames || '无'}`
+        : `耗材变更：${beforeNames || '无'} → ${afterNames || '无'}`;
+    }
+  }
+
+  if (historyAction || body.note || body.memo || body.status || historyNote) {
+    item.history.unshift(stamp(historyAction || body.status || '更新', historyNote));
   }
 
   if (AUDIT_COLLECTIONS.includes(collection) && itemBefore) {
@@ -845,21 +895,95 @@ function runAction(db, action, item) {
     target.history.unshift(stamp(action.label, action.note || '数量调整'));
   }
 
+  let consumableRelatedChanges = null;
+  if (action.collection === 'repairs' && item.status === '已完成' && item.consumables && item.consumables.length > 0) {
+    const stockErrors = [];
+    const consumableChanges = [];
+    const consumableNames = [];
+
+    for (const c of item.consumables) {
+      const consumable = db.consumables?.find(x => x.id === c.consumableId);
+      if (!consumable) {
+        stockErrors.push(`耗材「${c.consumableId}」不存在`);
+        continue;
+      }
+      const qty = Number(c.quantity) || 0;
+      const stock = Number(consumable.stock) || 0;
+      if (qty > stock) {
+        stockErrors.push(`${consumable.name}：需要 ${qty}，库存 ${stock}，缺口 ${qty - stock}`);
+      }
+    }
+
+    if (stockErrors.length > 0) {
+      return { error: `耗材库存不足，无法完成维修：${stockErrors.join('；')}` };
+    }
+
+    for (const c of item.consumables) {
+      const consumable = db.consumables?.find(x => x.id === c.consumableId);
+      if (!consumable) continue;
+      const qty = Number(c.quantity) || 0;
+      const consumableBefore = deepClone(consumable);
+      consumable.stock = (Number(consumable.stock) || 0) - qty;
+      consumable.updatedAt = new Date().toISOString();
+      consumable.history = consumable.history || [];
+      let unit = '个';
+      if (consumable.name?.includes('发胶') || consumable.name?.includes('胶') || consumable.name?.includes('液') || consumable.name?.includes('剂') || consumable.name?.includes('水')) {
+        unit = '瓶';
+      } else if (consumable.name?.includes('针') || consumable.name?.includes('笔')) {
+        unit = '支';
+      } else if (consumable.name?.includes('发束') || consumable.name?.includes('发网') || consumable.name?.includes('蕾丝')) {
+        unit = '片';
+      }
+      consumable.history.unshift(stamp('使用', `用于维修单「${item.type}」，使用 ${qty}${unit}`));
+      consumableChanges.push({
+        collection: 'consumables',
+        targetId: consumable.id,
+        before: consumableBefore,
+        after: deepClone(consumable)
+      });
+      consumableNames.push(`${consumable.name} × ${qty}`);
+    }
+
+    if (consumableNames.length > 0) {
+      item.history = item.history || [];
+      if (item.history.length > 0) {
+        const lastHistory = item.history[0];
+        lastHistory.note = lastHistory.note ? `${lastHistory.note}；使用耗材：${consumableNames.join('、')}` : `使用耗材：${consumableNames.join('、')}`;
+      }
+      if (related) {
+        related.history = related.history || [];
+        if (related.history.length > 0) {
+          const lastWigHistory = related.history[0];
+          lastWigHistory.note = lastWigHistory.note ? `${lastWigHistory.note}；维修使用耗材：${consumableNames.join('、')}` : `维修使用耗材：${consumableNames.join('、')}`;
+        }
+      }
+    }
+
+    consumableRelatedChanges = consumableChanges;
+  }
+
   const auditData = {};
   if (itemBefore) {
     auditData.itemBefore = itemBefore;
     auditData.itemAfter = deepClone(item);
   }
+  const relatedChangesArr = [];
   if (relatedBefore && action.relation) {
     const relatedAfter = deepClone(related);
     if (JSON.stringify(relatedBefore) !== JSON.stringify(relatedAfter)) {
-      auditData.relatedChanges = [{
+      relatedChangesArr.push({
         collection: action.relation.collection,
         targetId: related.id,
         before: relatedBefore,
         after: relatedAfter
-      }];
+      });
     }
+  }
+  if (consumableRelatedChanges) {
+    relatedChangesArr.push(...consumableRelatedChanges);
+  }
+  if (relatedChangesArr.length > 0) {
+    auditData.relatedChanges = relatedChangesArr;
   }
 
   return { item, auditData: Object.keys(auditData).length > 0 ? auditData : null };

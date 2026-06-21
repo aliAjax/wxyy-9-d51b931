@@ -8,12 +8,17 @@
       "capSize": "M",
       "hairline": "手勾蕾丝前额",
       "location": "A柜-03",
-      "status": "需要维修",
+      "status": "可演出",
       "performanceDate": "2026-07-03",
       "note": "右侧鬓角缺发，定型松散",
       "createdAt": "2026-06-15T08:00:00.000Z",
-      "updatedAt": "2026-06-20T03:35:06.188Z",
+      "updatedAt": "2026-06-21T02:07:39.767Z",
       "history": [
+        {
+          "at": "2026-06-21T02:07:39.767Z",
+          "action": "完成维修",
+          "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+        },
         {
           "at": "2026-06-20T03:35:06.188Z",
           "action": "归还检查不通过",
@@ -90,12 +95,17 @@
       "capSize": "S",
       "hairline": "手勾蕾丝前额",
       "location": "A柜-05",
-      "status": "借出中",
+      "status": "需要维修",
       "performanceDate": "2026-07-10",
       "note": "造型精致",
       "createdAt": "2026-06-08T08:00:00.000Z",
       "updatedAt": "2026-06-19T16:30:00.000Z",
       "history": [
+        {
+          "at": "2026-06-21T02:11:19.975278Z",
+          "action": "测试",
+          "note": "设置为需要维修状态"
+        },
         {
           "at": "2026-06-19T16:30:00.000Z",
           "action": "归还待检查",
@@ -445,6 +455,137 @@
           "note": "深度清洗任务创建"
         }
       ]
+    },
+    {
+      "id": "repairs-1782007577270-1781b",
+      "wigId": "wig-seed-1",
+      "type": "勾织",
+      "handler": "staff-seed-3",
+      "dueDate": "2026-07-10",
+      "status": "已完成",
+      "details": "测试维修：添加耗材功能",
+      "consumableId": "consumable-seed-4",
+      "quantity": "1",
+      "result": "待完成",
+      "consumables": [
+        {
+          "consumableId": "consumable-seed-3",
+          "quantity": 2
+        },
+        {
+          "consumableId": "consumable-seed-4",
+          "quantity": 1
+        }
+      ],
+      "createdAt": "2026-06-21T02:06:17.270Z",
+      "updatedAt": "2026-06-21T02:07:39.767Z",
+      "history": [
+        {
+          "at": "2026-06-21T02:07:39.767Z",
+          "action": "完成维修",
+          "note": "状态流转；使用耗材：真发发束 × 2、定型发胶 × 1"
+        },
+        {
+          "at": "2026-06-21T02:07:39.760Z",
+          "action": "待检查",
+          "note": "状态流转"
+        },
+        {
+          "at": "2026-06-21T02:07:39.750Z",
+          "action": "维修中",
+          "note": "状态流转"
+        },
+        {
+          "at": "2026-06-21T02:06:17.270Z",
+          "action": "创建",
+          "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+        }
+      ]
+    },
+    {
+      "id": "repairs-test-lowstock-1782007847031",
+      "wigId": "wig-seed-2",
+      "type": "测试库存不足",
+      "handler": "staff-seed-1",
+      "dueDate": "2026-07-15",
+      "status": "待检查",
+      "details": "测试库存不足场景",
+      "consumables": [
+        {
+          "consumableId": "consumable-seed-4",
+          "quantity": 999
+        }
+      ],
+      "createdAt": "2026-06-21T02:10:47.039792Z",
+      "updatedAt": "2026-06-21T02:10:58.087Z",
+      "history": [
+        {
+          "at": "2026-06-21T02:10:58.088Z",
+          "action": "待检查",
+          "note": "状态流转"
+        },
+        {
+          "at": "2026-06-21T02:10:47.039954Z",
+          "action": "创建",
+          "note": "测试库存不足"
+        }
+      ]
+    },
+    {
+      "id": "repairs-test-lowstock-1782007879975",
+      "wigId": "wig-seed-3",
+      "type": "测试库存不足",
+      "handler": "staff-seed-1",
+      "dueDate": "2026-07-15",
+      "status": "待检查",
+      "details": "测试库存不足场景",
+      "consumables": [
+        {
+          "consumableId": "consumable-seed-4",
+          "quantity": 999
+        }
+      ],
+      "createdAt": "2026-06-21T02:11:19.975384Z",
+      "updatedAt": "2026-06-21T02:11:19.975385Z",
+      "history": [
+        {
+          "at": "2026-06-21T02:11:19.975386Z",
+          "action": "创建",
+          "note": "测试库存不足"
+        }
+      ]
+    },
+    {
+      "id": "repairs-test-multi-lowstock-1782007915295",
+      "wigId": "wig-seed-3",
+      "type": "测试多耗材库存不足",
+      "handler": "staff-seed-1",
+      "dueDate": "2026-07-15",
+      "status": "待检查",
+      "details": "测试多种耗材同时缺货",
+      "consumables": [
+        {
+          "consumableId": "consumable-seed-3",
+          "quantity": 999
+        },
+        {
+          "consumableId": "consumable-seed-4",
+          "quantity": 999
+        },
+        {
+          "consumableId": "consumable-seed-2",
+          "quantity": 999
+        }
+      ],
+      "createdAt": "2026-06-21T02:11:55.295192Z",
+      "updatedAt": "2026-06-21T02:11:55.295298Z",
+      "history": [
+        {
+          "at": "2026-06-21T02:11:55.295299Z",
+          "action": "创建",
+          "note": "测试多耗材缺货"
+        }
+      ]
     }
   ],
   "schedules": [
@@ -629,12 +770,17 @@
     {
       "id": "consumable-seed-3",
       "name": "真发发束",
-      "stock": 8,
+      "stock": 6,
       "safeStock": 6,
       "note": "真人发束，18寸，深棕色",
       "createdAt": "2026-06-08T08:00:00.000Z",
-      "updatedAt": "2026-06-12T10:00:00.000Z",
+      "updatedAt": "2026-06-21T02:07:39.767Z",
       "history": [
+        {
+          "at": "2026-06-21T02:07:39.767Z",
+          "action": "使用",
+          "note": "用于维修单「勾织」，使用 2片"
+        },
         {
           "at": "2026-06-12T10:00:00.000Z",
           "action": "使用",
@@ -650,12 +796,17 @@
     {
       "id": "consumable-seed-4",
       "name": "定型发胶",
-      "stock": 2,
+      "stock": 1,
       "safeStock": 4,
       "note": "舞台专用强力定型喷雾",
       "createdAt": "2026-06-05T08:00:00.000Z",
-      "updatedAt": "2026-06-14T09:00:00.000Z",
+      "updatedAt": "2026-06-21T02:07:39.767Z",
       "history": [
+        {
+          "at": "2026-06-21T02:07:39.767Z",
+          "action": "使用",
+          "note": "用于维修单「勾织」，使用 1瓶"
+        },
         {
           "at": "2026-06-14T09:00:00.000Z",
           "action": "使用",
@@ -1076,5 +1227,574 @@
       ]
     }
   ],
-  "auditLogs": []
+  "auditLogs": [
+    {
+      "id": "audit-1782007858088-18b03",
+      "operationType": "action",
+      "collection": "repairs",
+      "targetId": "repairs-test-lowstock-1782007847031",
+      "targetLabel": "测试库存不足",
+      "actionLabel": "待检查",
+      "before": {
+        "id": "repairs-test-lowstock-1782007847031",
+        "wigId": "wig-seed-2",
+        "type": "测试库存不足",
+        "handler": "staff-seed-1",
+        "dueDate": "2026-07-15",
+        "status": "待检查",
+        "details": "测试库存不足场景",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 999
+          }
+        ],
+        "createdAt": "2026-06-21T02:10:47.039792Z",
+        "updatedAt": "2026-06-21T02:10:47.039953Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:10:47.039954Z",
+            "action": "创建",
+            "note": "测试库存不足"
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-test-lowstock-1782007847031",
+        "wigId": "wig-seed-2",
+        "type": "测试库存不足",
+        "handler": "staff-seed-1",
+        "dueDate": "2026-07-15",
+        "status": "待检查",
+        "details": "测试库存不足场景",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 999
+          }
+        ],
+        "createdAt": "2026-06-21T02:10:47.039792Z",
+        "updatedAt": "2026-06-21T02:10:58.087Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:10:58.088Z",
+            "action": "待检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:10:47.039954Z",
+            "action": "创建",
+            "note": "测试库存不足"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "动作「待检查」：测试库存不足",
+      "createdAt": "2026-06-21T02:10:58.088Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782007659767-760c5",
+      "operationType": "action",
+      "collection": "repairs",
+      "targetId": "repairs-1782007577270-1781b",
+      "targetLabel": "勾织",
+      "actionLabel": "完成维修",
+      "before": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "待检查",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:07:39.760Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.760Z",
+            "action": "待检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:07:39.750Z",
+            "action": "维修中",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "已完成",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:07:39.767Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.767Z",
+            "action": "完成维修",
+            "note": "状态流转；使用耗材：真发发束 × 2、定型发胶 × 1"
+          },
+          {
+            "at": "2026-06-21T02:07:39.760Z",
+            "action": "待检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:07:39.750Z",
+            "action": "维修中",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-1",
+          "targetLabel": "夜游女王 / 午夜花园",
+          "before": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "需要维修",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-20T03:35:06.188Z",
+            "history": [
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "可演出",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T02:07:39.767Z",
+            "history": [
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        },
+        {
+          "collection": "consumables",
+          "targetId": "consumable-seed-3",
+          "targetLabel": "真发发束",
+          "before": {
+            "id": "consumable-seed-3",
+            "name": "真发发束",
+            "stock": 8,
+            "safeStock": 6,
+            "note": "真人发束，18寸，深棕色",
+            "createdAt": "2026-06-08T08:00:00.000Z",
+            "updatedAt": "2026-06-12T10:00:00.000Z",
+            "history": [
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "使用",
+                "note": "补发使用2束"
+              },
+              {
+                "at": "2026-06-08T08:00:00.000Z",
+                "action": "创建",
+                "note": "初始化库存"
+              }
+            ]
+          },
+          "after": {
+            "id": "consumable-seed-3",
+            "name": "真发发束",
+            "stock": 6,
+            "safeStock": 6,
+            "note": "真人发束，18寸，深棕色",
+            "createdAt": "2026-06-08T08:00:00.000Z",
+            "updatedAt": "2026-06-21T02:07:39.767Z",
+            "history": [
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "使用",
+                "note": "用于维修单「勾织」，使用 2片"
+              },
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "使用",
+                "note": "补发使用2束"
+              },
+              {
+                "at": "2026-06-08T08:00:00.000Z",
+                "action": "创建",
+                "note": "初始化库存"
+              }
+            ]
+          }
+        },
+        {
+          "collection": "consumables",
+          "targetId": "consumable-seed-4",
+          "targetLabel": "定型发胶",
+          "before": {
+            "id": "consumable-seed-4",
+            "name": "定型发胶",
+            "stock": 2,
+            "safeStock": 4,
+            "note": "舞台专用强力定型喷雾",
+            "createdAt": "2026-06-05T08:00:00.000Z",
+            "updatedAt": "2026-06-14T09:00:00.000Z",
+            "history": [
+              {
+                "at": "2026-06-14T09:00:00.000Z",
+                "action": "使用",
+                "note": "演出造型使用1瓶"
+              },
+              {
+                "at": "2026-06-05T08:00:00.000Z",
+                "action": "创建",
+                "note": "初始化库存"
+              }
+            ]
+          },
+          "after": {
+            "id": "consumable-seed-4",
+            "name": "定型发胶",
+            "stock": 1,
+            "safeStock": 4,
+            "note": "舞台专用强力定型喷雾",
+            "createdAt": "2026-06-05T08:00:00.000Z",
+            "updatedAt": "2026-06-21T02:07:39.767Z",
+            "history": [
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "使用",
+                "note": "用于维修单「勾织」，使用 1瓶"
+              },
+              {
+                "at": "2026-06-14T09:00:00.000Z",
+                "action": "使用",
+                "note": "演出造型使用1瓶"
+              },
+              {
+                "at": "2026-06-05T08:00:00.000Z",
+                "action": "创建",
+                "note": "初始化库存"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "动作「完成维修」：勾织",
+      "createdAt": "2026-06-21T02:07:39.767Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782007659760-37fe7",
+      "operationType": "action",
+      "collection": "repairs",
+      "targetId": "repairs-1782007577270-1781b",
+      "targetLabel": "勾织",
+      "actionLabel": "待检查",
+      "before": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "维修中",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:07:39.750Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.750Z",
+            "action": "维修中",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "待检查",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:07:39.760Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.760Z",
+            "action": "待检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:07:39.750Z",
+            "action": "维修中",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "动作「待检查」：勾织",
+      "createdAt": "2026-06-21T02:07:39.760Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782007659750-bc119",
+      "operationType": "action",
+      "collection": "repairs",
+      "targetId": "repairs-1782007577270-1781b",
+      "targetLabel": "勾织",
+      "actionLabel": "维修中",
+      "before": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "待处理",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:06:17.270Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "维修中",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:07:39.750Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.750Z",
+            "action": "维修中",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "动作「维修中」：勾织",
+      "createdAt": "2026-06-21T02:07:39.750Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782007577270-5ebf3",
+      "operationType": "create",
+      "collection": "repairs",
+      "targetId": "repairs-1782007577270-1781b",
+      "targetLabel": "勾织",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "repairs-1782007577270-1781b",
+        "wigId": "wig-seed-1",
+        "type": "勾织",
+        "handler": "staff-seed-3",
+        "dueDate": "2026-07-10",
+        "status": "待处理",
+        "details": "测试维修：添加耗材功能",
+        "consumableId": "consumable-seed-4",
+        "quantity": "1",
+        "result": "待完成",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 2
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 1
+          }
+        ],
+        "createdAt": "2026-06-21T02:06:17.270Z",
+        "updatedAt": "2026-06-21T02:06:17.270Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:06:17.270Z",
+            "action": "创建",
+            "note": "预计使用耗材：真发发束 × 2、定型发胶 × 1"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建维修单：勾织",
+      "createdAt": "2026-06-21T02:06:17.271Z",
+      "undone": false,
+      "undoneAt": null
+    }
+  ]
 }

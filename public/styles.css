@@ -1925,3 +1925,86 @@ td.import-col-num {
     background: currentColor;
   }
 }
+
+.consumable-list-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consumable-field-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.consumable-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.consumable-row {
+  display: grid;
+  grid-template-columns: 1fr 100px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  background: #f7f3eb;
+  border-radius: 6px;
+}
+
+.consumable-row select,
+.consumable-row input {
+  width: 100%;
+}
+
+.consumable-remove-btn {
+  font-size: 12px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.consumable-add-btn {
+  align-self: flex-start;
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.consumable-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.detail-consumable-field {
+  grid-column: 1 / -1;
+}
+
+.consumable-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: #f7f3eb;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.consumable-list-item span:first-child {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .consumable-row {
+    grid-template-columns: 1fr;
+  }
+
+  .consumable-remove-btn {
+    width: 100%;
+  }
+}
