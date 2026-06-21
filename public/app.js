@@ -11,7 +11,8 @@ const state = {
   _warningsDebounceTimer: null,
   _dashboardDebounceTimer: null,
   _workbenchDebounceTimer: null,
-  pendingWorkbenchAction: null
+  pendingWorkbenchAction: null,
+  wigTimeline: { wigId: null, data: null, loading: false, showUndone: true }
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -621,6 +622,9 @@ function renderCard(item, collection, view) {
     } else if (editDisabledReason) {
       inlineActions = `<button class="ghost" disabled title="${escapeHtml(editDisabledReason)}">编辑</button>`;
     }
+  }
+  if (collection === 'wigs') {
+    inlineActions += `<button class="ghost" data-timeline-wig="${item.id}">生命周期</button>`;
   }
 
   let wigStatusBadge = '';
@@ -2487,6 +2491,122 @@ async function loadPerformanceWorkbench(date, options = {}) {
   }
 }
 
+function sourceTone(source) {
+  const map = {
+    '建档': 'ok',
+    '排期': 'accent',
+    '维修流转': 'warn',
+    '演出前检查': 'accent',
+    '借出归还': 'warn',
+    '质量复盘': 'ok',
+    '耗材消耗': 'muted',
+    '审计撤销': 'bad'
+  };
+  return map[source] || '';
+}
+
+function sourceIcon(source) {
+  const map = {
+    '建档': '📋',
+    '排期': '📅',
+    '维修流转': '🔧',
+    '演出前检查': '✅',
+    '借出归还': '📤',
+    '质量复盘': '📊',
+    '耗材消耗': '🧴',
+    '审计撤销': '↩️'
+  };
+  return map[source] || '📌';
+}
+
+function renderTimelineView(wig, timelineData) {
+  const events = timelineData.events || [];
+  const wigTitle = [wig.role, wig.show].filter(Boolean).join(' / ');
+  const statusTone = toneFor(wig.status);
+  const showUndone = state.wigTimeline.showUndone !== false;
+
+  const displayEvents = showUndone ? events : events.filter(e => !e.undone);
+  const totalCount = timelineData.total ?? events.length;
+  const validCount = timelineData.validCount ?? events.filter(e => !e.undone && e.source !== '审计撤销').length;
+  const undoneCount = timelineData.undoneCount ?? events.filter(e => e.undone).length;
+
+  const timelineItems = displayEvents.map(e => {
+    const undoneClass = e.undone ? ' timeline-event-undone' : '';
+    const sourceBadge = pill(e.source, sourceTone(e.source));
+    const icon = sourceIcon(e.source);
+    const undoneMark = e.undone ? `<span class="pill bad timeline-undone-badge">已撤销</span>` : '';
+    const undoneAtInfo = e.undone && e.undoneAt ? `<span class="timeline-undone-at">撤销于 ${fmtDate(e.undoneAt)}</span>` : '';
+    const sourceInfo = e.sourceLabel ? `<span class="timeline-source-label">${escapeHtml(e.sourceLabel)}</span>` : '';
+
+    return `
+      <div class="timeline-event${undoneClass}" data-source="${escapeHtml(e.source)}">
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <span class="timeline-icon">${icon}</span>
+            <span class="timeline-action">${escapeHtml(e.action)}</span>
+            ${sourceBadge}
+            ${undoneMark}
+          </div>
+          ${e.note ? `<div class="timeline-note">${escapeHtml(e.note)}</div>` : ''}
+          <div class="timeline-meta">
+            <span class="timeline-time">${fmtDate(e.at)}</span>
+            ${sourceInfo}
+            ${undoneAtInfo}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const statsHtml = `
+    <div class="timeline-stats">
+      <div class="timeline-stat"><span>总事件</span><strong>${totalCount}</strong></div>
+      <div class="timeline-stat"><span>有效事件</span><strong>${validCount}</strong></div>
+      ${undoneCount > 0 ? `<div class="timeline-stat timeline-stat-bad"><span>已撤销</span><strong>${undoneCount}</strong></div>` : ''}
+    </div>
+  `;
+
+  return `
+    <div class="timeline-detail">
+      <div class="timeline-detail-header">
+        <button class="ghost" data-timeline-close>← 返回列表</button>
+        <div class="timeline-detail-title">
+          <h2>${escapeHtml(wigTitle)}</h2>
+          ${pill(wig.status, statusTone)}
+        </div>
+        <div class="timeline-detail-info">
+          <span>${escapeHtml(wig.color || '')}</span>
+          <span>${escapeHtml(wig.location || '')}</span>
+          <span>${escapeHtml(wig.show || '')}</span>
+        </div>
+      </div>
+      ${statsHtml}
+      <div class="timeline-filter">
+        <label class="timeline-filter-label">
+          <input type="checkbox" id="timeline-show-undone" data-timeline-filter-undone ${showUndone ? 'checked' : ''}> 显示已撤销记录
+        </label>
+      </div>
+      <div class="timeline" id="timeline-events">
+        ${timelineItems || '<div class="empty">暂无生命周期事件</div>'}
+      </div>
+    </div>
+  `;
+}
+
+async function loadWigTimeline(wigId) {
+  const prevShowUndone = state.wigTimeline?.showUndone;
+  state.wigTimeline = { wigId, data: null, loading: true, showUndone: prevShowUndone !== undefined ? prevShowUndone : true };
+  try {
+    const result = await api(`/api/wigs/${wigId}/timeline`);
+    state.wigTimeline = { wigId, data: result, loading: false, showUndone: state.wigTimeline.showUndone };
+  } catch (error) {
+    state.wigTimeline = { wigId, data: null, loading: false, showUndone: state.wigTimeline.showUndone };
+    toast(error.message);
+  }
+  return state.wigTimeline.data;
+}
+
 function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
@@ -2582,6 +2702,9 @@ document.addEventListener('click', async (event) => {
   const auditExpandBtn = event.target.closest('[data-audit-expand]');
   const consumableAdd = event.target.closest('[data-consumable-add]');
   const consumableRemove = event.target.closest('[data-consumable-remove]');
+  const timelineBtn = event.target.closest('[data-timeline-wig]');
+  const timelineClose = event.target.closest('[data-timeline-close]');
+  const timelineFilterUndone = event.target.closest('[data-timeline-filter-undone]');
 
   if (tab) {
     const tabId = tab.dataset.tab;
@@ -2605,6 +2728,53 @@ document.addEventListener('click', async (event) => {
     event.preventDefault();
     const row = consumableRemove.closest('.consumable-row');
     if (row) row.remove();
+  }
+
+  if (timelineBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const wigId = timelineBtn.dataset.timelineWig;
+    const wig = state.db.wigs?.find(w => w.id === wigId);
+    if (!wig) return;
+
+    const listContainer = timelineBtn.closest('.list');
+    if (!listContainer) return;
+
+    if (state.wigTimeline?.wigId === wigId && state.wigTimeline?.data) {
+      listContainer.innerHTML = renderTimelineView(wig, state.wigTimeline.data);
+      return;
+    }
+
+    listContainer.innerHTML = '<div class="loading-text">加载生命周期时间线...</div>';
+    const result = await loadWigTimeline(wigId);
+    if (result) {
+      listContainer.innerHTML = renderTimelineView(wig, result);
+    }
+  }
+
+  if (timelineFilterUndone) {
+    event.preventDefault();
+    event.stopPropagation();
+    state.wigTimeline.showUndone = timelineFilterUndone.checked;
+    const wigId = state.wigTimeline.wigId;
+    const wig = state.db.wigs?.find(w => w.id === wigId);
+    const listContainer = timelineFilterUndone.closest('.list') || $('#list-wigs');
+    if (wig && state.wigTimeline.data && listContainer) {
+      listContainer.innerHTML = renderTimelineView(wig, state.wigTimeline.data);
+    }
+  }
+
+  if (timelineClose) {
+    event.preventDefault();
+    event.stopPropagation();
+    const view = state.config.views.find(v => v.collection === 'wigs');
+    if (view) {
+      const listContainer = $('#list-wigs');
+      if (listContainer) {
+        listContainer.innerHTML = renderList(view);
+      }
+    }
+    state.wigTimeline = { wigId: null, data: null, loading: false, showUndone: true };
   }
   if (action) {
     try {

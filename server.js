@@ -19,12 +19,15 @@ async function writeDb(db) {
   await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2) + '\n');
 }
 
-function stamp(action, note) {
-  return {
+function stamp(action, note, options) {
+  const entry = {
     at: new Date().toISOString(),
     action,
     note: note || ''
   };
+  if (options?.source) entry.source = options.source;
+  if (options?.sourceId) entry.sourceId = options.sourceId;
+  return entry;
 }
 
 function sortNewest(a, b) {
@@ -32,6 +35,39 @@ function sortNewest(a, b) {
 }
 
 const AUDIT_COLLECTIONS = ['wigs', 'repairs', 'repairReviews', 'schedules', 'preChecklists', 'lendings', 'consumables', 'staff', 'warningStatuses'];
+
+const TIMELINE_COLLECTION_CONFIG = {
+  wigs: {
+    source: '建档',
+    wigIdField: null,
+    matchFn: (item, wigId) => item.id === wigId
+  },
+  schedules: {
+    source: '排期',
+    wigIdField: 'wigId',
+    matchFn: (item, wigId) => item.wigId === wigId
+  },
+  repairs: {
+    source: '维修流转',
+    wigIdField: 'wigId',
+    matchFn: (item, wigId) => item.wigId === wigId
+  },
+  preChecklists: {
+    source: '演出前检查',
+    wigIdField: 'wigId',
+    matchFn: (item, wigId) => item.wigId === wigId
+  },
+  lendings: {
+    source: '借出归还',
+    wigIdField: 'wigId',
+    matchFn: (item, wigId) => item.wigId === wigId
+  },
+  repairReviews: {
+    source: '质量复盘',
+    wigIdField: 'wigId',
+    matchFn: (item, wigId) => item.wigId === wigId
+  }
+};
 
 const WARNING_STATUS = {
   PENDING: 'pending',
@@ -123,6 +159,176 @@ function getTargetLabel(collection, item) {
     warningStatuses: () => `${WARNING_STATUS_LABEL[item.status] || item.status} - ${item.show || ''} ${item.role || ''}`
   };
   return labelMap[collection] ? labelMap[collection]() : item.id;
+}
+
+function backfillHistoryFields(db) {
+  let changed = false;
+  for (const [collection, config] of Object.entries(TIMELINE_COLLECTION_CONFIG)) {
+    const items = db[collection] || [];
+    for (const item of items) {
+      if (!Array.isArray(item.history)) continue;
+      for (const h of item.history) {
+        let itemChanged = false;
+        if (!h.source && config.source) {
+          h.source = config.source;
+          itemChanged = true;
+        }
+        if (!h.sourceId && item.id) {
+          h.sourceId = item.id;
+          itemChanged = true;
+        }
+        if (!h.sourceCollection) {
+          h.sourceCollection = collection;
+          itemChanged = true;
+        }
+        if (itemChanged) changed = true;
+      }
+    }
+  }
+  const consumables = db.consumables || [];
+  for (const c of consumables) {
+    if (!Array.isArray(c.history)) continue;
+    for (const h of c.history) {
+      let itemChanged = false;
+      if (!h.source) {
+        h.source = '耗材消耗';
+        itemChanged = true;
+      }
+      if (!h.sourceId && c.id) {
+        h.sourceId = c.id;
+        itemChanged = true;
+      }
+      if (!h.sourceCollection) {
+        h.sourceCollection = 'consumables';
+        itemChanged = true;
+      }
+      if (itemChanged) changed = true;
+    }
+  }
+  return changed;
+}
+
+function buildTimelineEvent(historyEntry, collection, sourceLabel, sourceId) {
+  return {
+    id: `${collection}-${sourceId}-${historyEntry.at}-${Math.random().toString(16).slice(2, 6)}`,
+    at: historyEntry.at,
+    action: historyEntry.action,
+    note: historyEntry.note || '',
+    source: historyEntry.source || TIMELINE_COLLECTION_CONFIG[collection]?.source || collection,
+    sourceCollection: historyEntry.sourceCollection || collection,
+    sourceId: historyEntry.sourceId || sourceId,
+    sourceLabel: sourceLabel || '',
+    undone: false,
+    undoneAt: null,
+    auditLogId: null
+  };
+}
+
+function extractTimelineEventsFromCollection(db, collection, wigId) {
+  const events = [];
+  const config = TIMELINE_COLLECTION_CONFIG[collection];
+  if (!config) return events;
+
+  const items = db[collection] || [];
+  for (const item of items) {
+    if (!config.matchFn(item, wigId)) continue;
+    const label = getTargetLabel(collection, item);
+    const history = item.history || [];
+    for (const h of history) {
+      events.push(buildTimelineEvent(h, collection, label, item.id));
+    }
+  }
+  return events;
+}
+
+function extractConsumableEvents(db, wigId) {
+  const events = [];
+  const repairs = (db.repairs || []).filter(r => r.wigId === wigId);
+  for (const repair of repairs) {
+    const consumableUsages = repair.consumables || [];
+    for (const usage of consumableUsages) {
+      const consumable = (db.consumables || []).find(c => c.id === usage.consumableId);
+      if (!consumable) continue;
+      for (const h of consumable.history || []) {
+        const noteText = (h.note || '').toLowerCase();
+        const repairType = (repair.type || '').toLowerCase();
+        const repairId = repair.id || '';
+        if (noteText.includes(repairType) || noteText.includes(repairId) || (h.action === '使用' && (repair.updatedAt && h.at && Math.abs(new Date(h.at) - new Date(repair.updatedAt)) < 5000))) {
+          events.push(buildTimelineEvent(h, 'consumables', getTargetLabel('consumables', consumable), consumable.id));
+        }
+      }
+    }
+  }
+  return events;
+}
+
+function correlateAuditUndo(db, events, wigId) {
+  const relatedAuditLogs = (db.auditLogs || []).filter(log => {
+    if (log.collection === 'wigs' && log.targetId === wigId) return true;
+    if (TIMELINE_COLLECTION_CONFIG[log.collection]) {
+      const items = db[log.collection] || [];
+      const item = items.find(i => i.id === log.targetId);
+      if (item) {
+        const config = TIMELINE_COLLECTION_CONFIG[log.collection];
+        if (config && config.matchFn(item, wigId)) return true;
+      }
+    }
+    for (const rc of log.relatedChanges || []) {
+      if (rc.collection === 'wigs' && rc.targetId === wigId) return true;
+      if (TIMELINE_COLLECTION_CONFIG[rc.collection]) {
+        const items = db[rc.collection] || [];
+        const item = items.find(i => i.id === rc.targetId);
+        if (item) {
+          const config = TIMELINE_COLLECTION_CONFIG[rc.collection];
+          if (config && config.matchFn(item, wigId)) return true;
+        }
+      }
+    }
+    return false;
+  });
+
+  const undoneLogMap = new Map();
+  for (const log of relatedAuditLogs) {
+    if (log.undone) {
+      undoneLogMap.set(log.id, log);
+    }
+  }
+
+  for (const event of events) {
+    for (const log of relatedAuditLogs) {
+      if (!log.undone) continue;
+      if (event.sourceCollection !== log.collection) continue;
+      if (event.sourceId !== log.targetId) continue;
+      const eventTime = new Date(event.at).getTime();
+      const logTime = new Date(log.createdAt).getTime();
+      if (Math.abs(eventTime - logTime) < 2000) {
+        event.undone = true;
+        event.undoneAt = log.undoneAt;
+        event.auditLogId = log.id;
+        break;
+      }
+    }
+  }
+
+  const undoEvents = [];
+  for (const log of relatedAuditLogs) {
+    if (!log.undone) continue;
+    undoEvents.push({
+      id: `audit-undo-${log.id}`,
+      at: log.undoneAt,
+      action: '撤销操作',
+      note: `撤销了「${log.summary || ''}」`,
+      source: '审计撤销',
+      sourceCollection: 'auditLogs',
+      sourceId: log.id,
+      sourceLabel: log.summary || '',
+      undone: false,
+      undoneAt: null,
+      auditLogId: log.id
+    });
+  }
+
+  return [...events, ...undoEvents];
 }
 
 function getFieldLabelMap(collection) {
@@ -314,6 +520,44 @@ function undoAuditLog(db, auditLog) {
 
   return true;
 }
+
+app.get('/api/wigs/:id/timeline', async (req, res) => {
+  const db = await readDb();
+  const { id } = req.params;
+
+  const wig = (db.wigs || []).find(w => w.id === id);
+  if (!wig) return res.status(404).json({ error: '假发不存在' });
+
+  const historyChanged = backfillHistoryFields(db);
+  if (historyChanged) {
+    await writeDb(db);
+  }
+
+  const wigLabel = getTargetLabel('wigs', wig);
+  let events = [];
+
+  for (const collection of Object.keys(TIMELINE_COLLECTION_CONFIG)) {
+    events = events.concat(extractTimelineEventsFromCollection(db, collection, id));
+  }
+
+  events = events.concat(extractConsumableEvents(db, id));
+
+  events = correlateAuditUndo(db, events, id);
+
+  events.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+  const validCount = events.filter(e => !e.undone && e.source !== '审计撤销').length;
+  const undoneCount = events.filter(e => e.undone).length;
+
+  res.json({
+    wigId: id,
+    wigLabel,
+    total: events.length,
+    validCount,
+    undoneCount,
+    events
+  });
+});
 
 app.get('/api/audit-logs', async (req, res) => {
   const db = await readDb();
