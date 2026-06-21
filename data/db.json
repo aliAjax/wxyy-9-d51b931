@@ -66,10 +66,15 @@
       "location": "B柜-99",
       "status": "归还待检查",
       "performanceDate": "2026-07-03",
-      "note": "测试归还待检查假发修改非关键字段",
+      "note": "（重构测试）测试归还待检查假发修改非关键字段",
       "createdAt": "2026-06-10T08:00:00.000Z",
-      "updatedAt": "2026-06-21T03:30:20.853Z",
+      "updatedAt": "2026-06-21T14:16:37.749Z",
       "history": [
+        {
+          "at": "2026-06-21T14:16:37.749Z",
+          "action": "更新",
+          "note": "（重构测试）测试归还待检查假发修改非关键字段"
+        },
         {
           "at": "2026-06-21T03:30:20.853Z",
           "action": "更新",
@@ -1471,6 +1476,168 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1782051397749-06806",
+      "operationType": "update",
+      "collection": "wigs",
+      "targetId": "wig-seed-2",
+      "targetLabel": "王子 / 午夜花园",
+      "actionLabel": "",
+      "before": {
+        "id": "wig-seed-2",
+        "role": "王子",
+        "show": "午夜花园",
+        "color": "深棕",
+        "capSize": "L",
+        "hairline": "普通前网",
+        "location": "B柜-99",
+        "status": "归还待检查",
+        "performanceDate": "2026-07-03",
+        "note": "测试归还待检查假发修改非关键字段",
+        "createdAt": "2026-06-10T08:00:00.000Z",
+        "updatedAt": "2026-06-21T03:30:20.853Z",
+        "history": [
+          {
+            "at": "2026-06-21T03:30:20.853Z",
+            "action": "更新",
+            "note": "测试归还待检查假发修改非关键字段",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T03:24:42.126Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-19T09:00:00.000Z",
+            "action": "借出",
+            "note": "借给 张晓明，用于 午夜花园",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "演出前检查已重置",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-12T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为可演出",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-10T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          }
+        ]
+      },
+      "after": {
+        "id": "wig-seed-2",
+        "role": "王子",
+        "show": "午夜花园",
+        "color": "深棕",
+        "capSize": "L",
+        "hairline": "普通前网",
+        "location": "B柜-99",
+        "status": "归还待检查",
+        "performanceDate": "2026-07-03",
+        "note": "（重构测试）测试归还待检查假发修改非关键字段",
+        "createdAt": "2026-06-10T08:00:00.000Z",
+        "updatedAt": "2026-06-21T14:16:37.749Z",
+        "history": [
+          {
+            "at": "2026-06-21T14:16:37.749Z",
+            "action": "更新",
+            "note": "（重构测试）测试归还待检查假发修改非关键字段"
+          },
+          {
+            "at": "2026-06-21T03:30:20.853Z",
+            "action": "更新",
+            "note": "测试归还待检查假发修改非关键字段",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T03:24:42.126Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-19T09:00:00.000Z",
+            "action": "借出",
+            "note": "借给 张晓明，用于 午夜花园",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "演出前检查已重置",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-12T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为可演出",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          },
+          {
+            "at": "2026-06-10T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库",
+            "source": "建档",
+            "sourceId": "wig-seed-2",
+            "sourceCollection": "wigs"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "更新假发档案（备注）：王子 / 午夜花园",
+      "createdAt": "2026-06-21T14:16:37.749Z",
+      "undone": false,
+      "undoneAt": null
+    },
     {
       "id": "audit-1782047994071-53a5c",
       "operationType": "update",

@@ -142,41 +142,51 @@ function staffOptionList(currentHandler = '') {
   return `<option value="">选择新的处理人</option>${options}`;
 }
 
-function formField(field) {
+function renderFormInputField(field) {
   const required = field.required ? 'required' : '';
   const value = field.default ? `value="${escapeHtml(field.default)}"` : '';
-  if (field.type === 'textarea') {
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<textarea name="${field.name}" ${required}></textarea></label>`;
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" ${value} ${required}></label>`;
+}
+
+function renderFormTextareaField(field) {
+  const required = field.required ? 'required' : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<textarea name="${field.name}" ${required}></textarea></label>`;
+}
+
+function renderFormSelectField(field) {
+  const required = field.required ? 'required' : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${field.options.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}</select></label>`;
+}
+
+function getRelationItems(field) {
+  let items = state.db[field.collection] || [];
+  if (field.filterByStatus) {
+    items = items.filter((item) => item.status === field.filterByStatus);
   }
-  if (field.type === 'select') {
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${field.options.map((option) => `<option>${escapeHtml(option)}</option>`).join('')}</select></label>`;
+  if (field.filterWithoutReview) {
+    const reviews = state.db.repairReviews || [];
+    const reviewedIds = new Set(reviews.map((r) => r.repairId));
+    items = items.filter((item) => !reviewedIds.has(item.id));
   }
-  if (field.type === 'relation') {
-    let items = state.db[field.collection] || [];
-    if (field.filterByStatus) {
-      items = items.filter((item) => item.status === field.filterByStatus);
-    }
-    if (field.filterWithoutReview) {
-      const reviews = state.db.repairReviews || [];
-      const reviewedIds = new Set(reviews.map((r) => r.repairId));
-      items = items.filter((item) => !reviewedIds.has(item.id));
-    }
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${optionList(items, field.labelFields)}</select></label>`;
-  }
-  if (field.type === 'consumableList') {
-    const consumables = state.db.consumables || [];
-    const optionsHtml = consumables.map((c) => {
-      const stockInfo = getStockStatus(c);
-      return `<option value="${c.id}">${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
-    }).join('');
-    return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
-      <label class="consumable-field-label">${field.label}</label>
-      <div class="consumable-rows" data-consumable-rows>
-      </div>
-      <button type="button" class="ghost consumable-add-btn" data-consumable-add>
-        + 添加耗材
-      </button>
-      <template data-consumable-row-template>
+  return items;
+}
+
+function renderFormRelationField(field) {
+  const required = field.required ? 'required' : '';
+  const items = getRelationItems(field);
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" ${required}>${optionList(items, field.labelFields)}</select></label>`;
+}
+
+function buildConsumableOptionsHtml() {
+  const consumables = state.db.consumables || [];
+  return consumables.map((c) => {
+    const stockInfo = getStockStatus(c);
+    return `<option value="${c.id}">${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
+  }).join('');
+}
+
+function buildConsumableRowTemplate(optionsHtml) {
+  return `<template data-consumable-row-template>
         <div class="consumable-row">
           <select class="consumable-select" data-consumable-select>
             <option value="">选择耗材</option>
@@ -185,62 +195,134 @@ function formField(field) {
           <input type="number" class="consumable-qty" data-consumable-qty value="1" min="1" placeholder="数量">
           <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
         </div>
-      </template>
-    </div>`;
-  }
-  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" ${value} ${required}></label>`;
+      </template>`;
 }
 
-function editFormField(field, value) {
-  const required = field.required ? 'required' : '';
+function renderFormConsumableListField(field) {
+  const optionsHtml = buildConsumableOptionsHtml();
+  const rowTemplate = buildConsumableRowTemplate(optionsHtml);
+  return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
+      <label class="consumable-field-label">${field.label}</label>
+      <div class="consumable-rows" data-consumable-rows>
+      </div>
+      <button type="button" class="ghost consumable-add-btn" data-consumable-add>
+        + 添加耗材
+      </button>
+      ${rowTemplate}
+    </div>`;
+}
+
+function formField(field) {
   if (field.type === 'textarea') {
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<textarea name="${field.name}" data-edit-field="${field.name}" ${required}>${escapeHtml(value || '')}</textarea></label>`;
+    return renderFormTextareaField(field);
   }
   if (field.type === 'select') {
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${field.options.map((option) => `<option${option === value ? ' selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>`;
+    return renderFormSelectField(field);
   }
   if (field.type === 'relation') {
-    let items = state.db[field.collection] || [];
-    if (field.filterByStatus) {
-      items = items.filter((item) => item.status === field.filterByStatus);
-    }
-    const options = items.map((item) => {
-      const label = field.labelFields.map((f) => item[f]).filter(Boolean).join(' / ');
-      const selected = item.id === value ? ' selected' : '';
-      return `<option value="${item.id}"${selected}>${escapeHtml(label)}</option>`;
-    }).join('');
-    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${options}</select></label>`;
+    return renderFormRelationField(field);
   }
   if (field.type === 'consumableList') {
-    const consumables = state.db.consumables || [];
-    const optionsHtml = consumables.map((c) => {
-      const stockInfo = getStockStatus(c);
-      return `<option value="${c.id}">${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
-    }).join('');
-    const rawList = value || [];
-    const qtyMap = new Map();
-    for (const c of rawList) {
-      if (c && c.consumableId && Number(c.quantity) > 0) {
-        const id = c.consumableId;
-        const qty = Number(c.quantity) || 0;
-        qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
-      }
+    return renderFormConsumableListField(field);
+  }
+  return renderFormInputField(field);
+}
+
+function normalizeConsumableList(rawList) {
+  const qtyMap = new Map();
+  const list = rawList || [];
+  for (const c of list) {
+    if (c && c.consumableId && Number(c.quantity) > 0) {
+      const id = c.consumableId;
+      const qty = Number(c.quantity) || 0;
+      qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
     }
-    const existingRows = [];
-    for (const [consumableId, quantity] of qtyMap.entries()) {
-      existingRows.push({ consumableId, quantity });
+  }
+  const result = [];
+  for (const [consumableId, quantity] of qtyMap.entries()) {
+    result.push({ consumableId, quantity });
+  }
+  return result;
+}
+
+function collectConsumableValues(container) {
+  const rows = container.querySelectorAll('[data-consumable-rows] .consumable-row');
+  const qtyMap = new Map();
+  rows.forEach((row) => {
+    const select = row.querySelector('[data-consumable-select]');
+    const qtyInput = row.querySelector('[data-consumable-qty]');
+    const consumableId = select?.value;
+    const quantity = Number(qtyInput?.value || 0);
+    if (consumableId && quantity > 0) {
+      qtyMap.set(consumableId, (qtyMap.get(consumableId) || 0) + quantity);
     }
-    const rowsHtml = existingRows.map((row) => `
+  });
+  const consumables = [];
+  for (const [consumableId, quantity] of qtyMap.entries()) {
+    consumables.push({ consumableId, quantity });
+  }
+  return consumables;
+}
+
+function buildConsumableSelectOptions(selectedId) {
+  const consumables = state.db.consumables || [];
+  return consumables.map((c) => {
+    const selected = c.id === selectedId ? ' selected' : '';
+    return `<option value="${c.id}"${selected}>${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
+  }).join('');
+}
+
+function buildConsumableRow(consumableId, quantity) {
+  const optionsHtml = buildConsumableSelectOptions(consumableId);
+  return `
       <div class="consumable-row">
         <select class="consumable-select" data-consumable-select>
           <option value="">选择耗材</option>
-          ${consumables.map((c) => `<option value="${c.id}"${c.id === row.consumableId ? ' selected' : ''}>${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`).join('')}
+          ${optionsHtml}
         </select>
-        <input type="number" class="consumable-qty" data-consumable-qty value="${row.quantity}" min="1" placeholder="数量">
+        <input type="number" class="consumable-qty" data-consumable-qty value="${quantity}" min="1" placeholder="数量">
         <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
       </div>
-    `).join('');
-    return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
+    `;
+}
+
+function buildConsumableRowsHtml(value) {
+  const existingRows = normalizeConsumableList(value);
+  return existingRows.map((row) => buildConsumableRow(row.consumableId, row.quantity)).join('');
+}
+
+function renderEditInputField(field, value) {
+  const required = field.required ? 'required' : '';
+  const valAttr = value !== undefined && value !== null ? `value="${escapeHtml(value)}"` : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" data-edit-field="${field.name}" ${valAttr} ${required}></label>`;
+}
+
+function renderEditTextareaField(field, value) {
+  const required = field.required ? 'required' : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<textarea name="${field.name}" data-edit-field="${field.name}" ${required}>${escapeHtml(value || '')}</textarea></label>`;
+}
+
+function renderEditSelectField(field, value) {
+  const required = field.required ? 'required' : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${field.options.map((option) => `<option${option === value ? ' selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>`;
+}
+
+function renderEditRelationField(field, value) {
+  const required = field.required ? 'required' : '';
+  const items = getRelationItems(field);
+  const options = items.map((item) => {
+    const label = field.labelFields.map((f) => item[f]).filter(Boolean).join(' / ');
+    const selected = item.id === value ? ' selected' : '';
+    return `<option value="${item.id}"${selected}>${escapeHtml(label)}</option>`;
+  }).join('');
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${options}</select></label>`;
+}
+
+function renderEditConsumableListField(field, value) {
+  const optionsHtml = buildConsumableOptionsHtml();
+  const rowTemplate = buildConsumableRowTemplate(optionsHtml);
+  const rowsHtml = buildConsumableRowsHtml(value);
+  return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
       <label class="consumable-field-label">${field.label}</label>
       <div class="consumable-rows" data-consumable-rows>
         ${rowsHtml}
@@ -248,42 +330,31 @@ function editFormField(field, value) {
       <button type="button" class="ghost consumable-add-btn" data-consumable-add>
         + 添加耗材
       </button>
-      <template data-consumable-row-template>
-        <div class="consumable-row">
-          <select class="consumable-select" data-consumable-select>
-            <option value="">选择耗材</option>
-            ${optionsHtml}
-          </select>
-          <input type="number" class="consumable-qty" data-consumable-qty value="1" min="1" placeholder="数量">
-          <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
-        </div>
-      </template>
+      ${rowTemplate}
     </div>`;
+}
+
+function editFormField(field, value) {
+  if (field.type === 'textarea') {
+    return renderEditTextareaField(field, value);
   }
-  const valAttr = value !== undefined && value !== null ? `value="${escapeHtml(value)}"` : '';
-  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" data-edit-field="${field.name}" ${valAttr} ${required}></label>`;
+  if (field.type === 'select') {
+    return renderEditSelectField(field, value);
+  }
+  if (field.type === 'relation') {
+    return renderEditRelationField(field, value);
+  }
+  if (field.type === 'consumableList') {
+    return renderEditConsumableListField(field, value);
+  }
+  return renderEditInputField(field, value);
 }
 
 function collectEditValues(panel, editFields) {
   const payload = {};
   for (const field of editFields) {
     if (field.type === 'consumableList') {
-      const rows = panel.querySelectorAll('[data-consumable-rows] .consumable-row');
-      const qtyMap = new Map();
-      rows.forEach((row) => {
-        const select = row.querySelector('[data-consumable-select]');
-        const qtyInput = row.querySelector('[data-consumable-qty]');
-        const consumableId = select?.value;
-        const quantity = Number(qtyInput?.value || 0);
-        if (consumableId && quantity > 0) {
-          qtyMap.set(consumableId, (qtyMap.get(consumableId) || 0) + quantity);
-        }
-      });
-      const consumables = [];
-      for (const [consumableId, quantity] of qtyMap.entries()) {
-        consumables.push({ consumableId, quantity });
-      }
-      payload[field.name] = consumables;
+      payload[field.name] = collectConsumableValues(panel);
     } else if (field.type === 'number') {
       const el = panel.querySelector(`[data-edit-field="${field.name}"]`);
       payload[field.name] = Number(el?.value || 0);
@@ -323,22 +394,7 @@ function values(form, view) {
   for (const field of view.fields) {
     if (field.type === 'number') payload[field.name] = Number(payload[field.name] || 0);
     if (field.type === 'consumableList') {
-      const rows = form.querySelectorAll('[data-consumable-rows] .consumable-row');
-      const qtyMap = new Map();
-      rows.forEach((row) => {
-        const select = row.querySelector('[data-consumable-select]');
-        const qtyInput = row.querySelector('[data-consumable-qty]');
-        const consumableId = select?.value;
-        const quantity = Number(qtyInput?.value || 0);
-        if (consumableId && quantity > 0) {
-          qtyMap.set(consumableId, (qtyMap.get(consumableId) || 0) + quantity);
-        }
-      });
-      const consumables = [];
-      for (const [consumableId, quantity] of qtyMap.entries()) {
-        consumables.push({ consumableId, quantity });
-      }
-      payload[field.name] = consumables;
+      payload[field.name] = collectConsumableValues(form);
     }
   }
   return { ...view.defaults, ...payload };
@@ -450,8 +506,7 @@ function workloadTone(level) {
   return tones[Math.min(Math.max(level, 0), tones.length - 1)] || 'ok';
 }
 
-function renderCard(item, collection, view) {
-  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+function getCardStatusInfo(item, view) {
   let statusValue = item[view.statusField];
   let statusTone = '';
   const staffStat = state.staffStats[item.id];
@@ -461,7 +516,10 @@ function renderCard(item, collection, view) {
   } else {
     statusTone = toneFor(statusValue);
   }
-  const stockInfo = view.stockField ? getStockStatus(item) : null;
+  return { statusValue, statusTone, staffStat };
+}
+
+function getCardClass(item, view, stockInfo, staffStat) {
   let cardClass = 'card';
   if (stockInfo && stockInfo.level === 0) cardClass = 'card stock-empty';
   else if (stockInfo && stockInfo.level === 1) cardClass = 'card low-stock';
@@ -470,97 +528,96 @@ function renderCard(item, collection, view) {
   if (view.id === 'staff' && staffStat) {
     cardClass += ` workload-${staffStat.workloadLevel}`;
   }
-  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
-  const details = (view.detailFields || []).map((field) => {
-    let value;
-    let tone = '';
-    let isHtml = false;
-    if (field.type === 'dynamic' && field.name === 'wigStatus') {
-      const wigInfo = getWigStatus(item.wigId);
-      value = wigInfo.status;
-      tone = wigInfo.tone;
-    } else if (field.type === 'dynamic' && field.name === 'stockStatus') {
-      const info = getStockStatus(item);
-      value = info.status;
-      tone = info.tone;
-    } else if (field.type === 'staffStat') {
-      const personStats = state.staffStats[item.id] || {};
-      value = personStats[field.statKey] || 0;
-      tone = value > 0 ? 'warn' : 'ok';
-    } else if (field.type === 'staffWorkload') {
-      const personStats = state.staffStats[item.id] || {};
-      value = personStats.workload || '空闲';
-      tone = workloadTone(personStats.workloadLevel || 0);
-    } else if (field.type === 'stock') {
-      value = item[field.name];
-      tone = stockInfo?.tone || '';
-    } else if (field.type === 'score') {
-      value = scoreStars(item[field.name]);
-      isHtml = true;
-    } else if (field.type === 'pill') {
-      const pillValue = item[field.name];
-      tone = pillValue === '是' ? 'bad' : 'ok';
-      value = pillValue || '-';
-    } else if (field.type === 'relation') {
-      value = relationLabel(field, item[field.name]);
-    } else if (field.type === 'consumableList') {
-      const rawList = item[field.name] || [];
-      const qtyMap = new Map();
-      for (const c of rawList) {
-        if (c && c.consumableId && Number(c.quantity) > 0) {
-          const id = c.consumableId;
-          const qty = Number(c.quantity) || 0;
-          qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
-        }
-      }
-      const list = [];
-      for (const [consumableId, quantity] of qtyMap.entries()) {
-        list.push({ consumableId, quantity });
-      }
-      if (list.length === 0) {
-        value = '无';
-      } else {
-        isHtml = true;
-        const listHtml = list.map((c) => {
-          const consumable = state.db.consumables?.find((x) => x.id === c.consumableId);
-          const name = consumable?.name || c.consumableId;
-          const stock = consumable ? Number(consumable.stock) || 0 : null;
-          let stockTone = '';
-          let stockBadge = '';
-          if (stock !== null) {
-            if (stock <= 0) stockTone = 'bad';
-            else if (stock < (consumable.safeStock || 0)) stockTone = 'warn';
-            else stockTone = 'ok';
-            stockBadge = `<span class="pill ${stockTone}" style="margin-left:4px;font-size:11px;">库 ${stock}</span>`;
-          }
-          return `<div class="consumable-list-item"><span>${escapeHtml(name)} × ${c.quantity}</span>${stockBadge}</div>`;
-        }).join('');
-        return `<div class="detail-consumable-field">
+  return cardClass;
+}
+
+function renderConsumableCardDetail(field, item) {
+  const list = normalizeConsumableList(item[field.name]);
+  if (list.length === 0) {
+    return null;
+  }
+  const listHtml = list.map((c) => {
+    const consumable = state.db.consumables?.find((x) => x.id === c.consumableId);
+    const name = consumable?.name || c.consumableId;
+    const stock = consumable ? Number(consumable.stock) || 0 : null;
+    let stockTone = '';
+    let stockBadge = '';
+    if (stock !== null) {
+      if (stock <= 0) stockTone = 'bad';
+      else if (stock < (consumable.safeStock || 0)) stockTone = 'warn';
+      else stockTone = 'ok';
+      stockBadge = `<span class="pill ${stockTone}" style="margin-left:4px;font-size:11px;">库 ${stock}</span>`;
+    }
+    return `<div class="consumable-list-item"><span>${escapeHtml(name)} × ${c.quantity}</span>${stockBadge}</div>`;
+  }).join('');
+  return `<div class="detail-consumable-field">
           <div class="consumable-field-label" style="color:var(--muted);font-size:13px;font-weight:700;margin-bottom:4px;">${escapeHtml(field.label)}</div>
           <div class="consumable-card-list">${listHtml}</div>
         </div>`;
-      }
-    } else {
-      value = item[field.name];
-    }
-    if (isHtml) {
-      return `<div>${escapeHtml(field.label)}<br>${value}</div>`;
-    }
-    if (tone) {
-      const displayValue = value === 0 ? '0' : (value || '-');
-      return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
-    }
-    return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
-  }).join('');
-  const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
+}
 
-  let reviewSummary = '';
-  if (collection === 'repairs') {
-    const review = getReviewForRepair(item.id);
-    if (review) {
-      const scoreHtml = scoreStars(review.timeScore);
-      const affectsTone = review.affectsPerformance === '是' ? 'bad' : 'ok';
-      reviewSummary = `
+function renderCardDetailField(field, item, stockInfo) {
+  let value;
+  let tone = '';
+  let isHtml = false;
+  if (field.type === 'dynamic' && field.name === 'wigStatus') {
+    const wigInfo = getWigStatus(item.wigId);
+    value = wigInfo.status;
+    tone = wigInfo.tone;
+  } else if (field.type === 'dynamic' && field.name === 'stockStatus') {
+    const info = getStockStatus(item);
+    value = info.status;
+    tone = info.tone;
+  } else if (field.type === 'staffStat') {
+    const personStats = state.staffStats[item.id] || {};
+    value = personStats[field.statKey] || 0;
+    tone = value > 0 ? 'warn' : 'ok';
+  } else if (field.type === 'staffWorkload') {
+    const personStats = state.staffStats[item.id] || {};
+    value = personStats.workload || '空闲';
+    tone = workloadTone(personStats.workloadLevel || 0);
+  } else if (field.type === 'stock') {
+    value = item[field.name];
+    tone = stockInfo?.tone || '';
+  } else if (field.type === 'score') {
+    value = scoreStars(item[field.name]);
+    isHtml = true;
+  } else if (field.type === 'pill') {
+    const pillValue = item[field.name];
+    tone = pillValue === '是' ? 'bad' : 'ok';
+    value = pillValue || '-';
+  } else if (field.type === 'relation') {
+    value = relationLabel(field, item[field.name]);
+  } else if (field.type === 'consumableList') {
+    const consumableDetail = renderConsumableCardDetail(field, item);
+    if (consumableDetail) {
+      return consumableDetail;
+    }
+    value = '无';
+  } else {
+    value = item[field.name];
+  }
+  if (isHtml) {
+    return `<div>${escapeHtml(field.label)}<br>${value}</div>`;
+  }
+  if (tone) {
+    const displayValue = value === 0 ? '0' : (value || '-');
+    return `<div>${escapeHtml(field.label)}<br>${pill(displayValue, tone)}</div>`;
+  }
+  return `<div>${escapeHtml(field.label)}<br><strong>${escapeHtml(value || '-')}</strong></div>`;
+}
+
+function renderCardDetailFields(item, view, stockInfo) {
+  return (view.detailFields || []).map((field) => renderCardDetailField(field, item, stockInfo)).join('');
+}
+
+function renderCardReviewSummary(item, collection) {
+  if (collection !== 'repairs') return '';
+  const review = getReviewForRepair(item.id);
+  if (review) {
+    const scoreHtml = scoreStars(review.timeScore);
+    const affectsTone = review.affectsPerformance === '是' ? 'bad' : 'ok';
+    return `
         <div class="repair-review-summary">
           <div class="review-summary-header">
             <span class="pill ok">已复盘</span>
@@ -571,36 +628,44 @@ function renderCard(item, collection, view) {
           ${review.reviewer ? `<div class="review-reviewer">复盘人：${escapeHtml(review.reviewer)}</div>` : ''}
         </div>
       `;
-    } else if (item.status === '已完成') {
-      reviewSummary = `
+  } else if (item.status === '已完成') {
+    return `
         <div class="repair-review-summary pending">
           <span class="pill warn">待复盘</span>
           <span class="review-pending-hint">该维修单已完成，请到质量复盘模块登记复盘结论</span>
         </div>
       `;
-    }
   }
+  return '';
+}
 
-  const actions = state.config.actions
+function renderCardActions(item, collection) {
+  return state.config.actions
     .filter((action) => action.collection === collection)
     .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
     .join('');
+}
 
-  let editPanelHtml = '';
+function getEditInfo(item, collection) {
   const viewConfig = state.config.views.find((v) => v.collection === collection);
   const editFields = viewConfig?.editFields;
   let canEdit = false;
   let editDisabledReason = '';
-
   if (editFields && editFields.length > 0) {
     canEdit = true;
     if (collection === 'repairs' && item.status === '已完成') {
       canEdit = false;
       editDisabledReason = '已完成的维修单不能修改';
     }
-    if (canEdit) {
-      const editPanelId = `edit-panel-${collection}-${item.id}`;
-      editPanelHtml = `
+  }
+  return { viewConfig, editFields, canEdit, editDisabledReason };
+}
+
+function renderCardEditPanel(item, collection, editInfo) {
+  const { viewConfig, editFields, canEdit } = editInfo;
+  if (!canEdit) return '';
+  const editPanelId = `edit-panel-${collection}-${item.id}`;
+  return `
         <div class="edit-form-panel" id="${editPanelId}" style="display:none;">
           <h4>编辑${escapeHtml(viewConfig?.label || collectionLabel(collection))}</h4>
           <div class="edit-form-items">
@@ -612,9 +677,10 @@ function renderCard(item, collection, view) {
           </div>
         </div>
       `;
-    }
-  }
+}
 
+function renderCardInlineActions(item, collection, editInfo) {
+  const { editFields, canEdit, editDisabledReason } = editInfo;
   let inlineActions = '';
   if (editFields && editFields.length > 0) {
     if (canEdit) {
@@ -626,12 +692,29 @@ function renderCard(item, collection, view) {
   if (collection === 'wigs') {
     inlineActions += `<button class="ghost" data-timeline-wig="${item.id}">生命周期</button>`;
   }
+  return inlineActions;
+}
 
-  let wigStatusBadge = '';
-  if (view.showWigStatus && item.wigId) {
-    const wigInfo = getWigStatus(item.wigId);
-    wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
-  }
+function renderCardWigStatusBadge(item, view) {
+  if (!view.showWigStatus || !item.wigId) return '';
+  const wigInfo = getWigStatus(item.wigId);
+  return `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
+}
+
+function renderCard(item, collection, view) {
+  const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
+  const { statusValue, statusTone, staffStat } = getCardStatusInfo(item, view);
+  const stockInfo = view.stockField ? getStockStatus(item) : null;
+  const cardClass = getCardClass(item, view, stockInfo, staffStat);
+  const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
+  const details = renderCardDetailFields(item, view, stockInfo);
+  const summary = (view.summaryFields || []).map((field) => item[field]).filter(Boolean).join(' · ');
+  const reviewSummary = renderCardReviewSummary(item, collection);
+  const actions = renderCardActions(item, collection);
+  const editInfo = getEditInfo(item, collection);
+  const editPanelHtml = renderCardEditPanel(item, collection, editInfo);
+  const inlineActions = renderCardInlineActions(item, collection, editInfo);
+  const wigStatusBadge = renderCardWigStatusBadge(item, view);
   return `<article class="${cardClass}">
     <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : (stockInfo ? pill(stockInfo.status, stockInfo.tone) : '')}</div>
     ${relation}
