@@ -348,26 +348,54 @@ function extractEventsFromUndoneAuditLogs(db, wigId) {
   return events;
 }
 
+function historyKey(entry) {
+  return `${entry?.at || ''}-${entry?.action || ''}-${entry?.note || ''}`;
+}
+
+function addedHistoryKeys(before, after) {
+  const beforeKeys = new Set((before?.history || []).map(historyKey));
+  return new Set((after?.history || [])
+    .filter(h => !beforeKeys.has(historyKey(h)))
+    .map(historyKey));
+}
+
+function auditHistoryKeysByTarget(log) {
+  const map = new Map();
+  const addKeys = (collection, targetId, keys) => {
+    if (!collection || !targetId || !keys?.size) return;
+    const targetKey = `${collection}:${targetId}`;
+    const existing = map.get(targetKey) || new Set();
+    for (const key of keys) existing.add(key);
+    map.set(targetKey, existing);
+  };
+
+  if (log.operationType === 'create') {
+    addKeys(log.collection, log.targetId, new Set((log.after?.history || []).map(historyKey)));
+  } else {
+    addKeys(log.collection, log.targetId, addedHistoryKeys(log.before, log.after));
+  }
+
+  for (const rc of log.relatedChanges || []) {
+    if (rc.before === null || rc.before === undefined) {
+      addKeys(rc.collection, rc.targetId, new Set((rc.after?.history || []).map(historyKey)));
+    } else {
+      addKeys(rc.collection, rc.targetId, addedHistoryKeys(rc.before, rc.after));
+    }
+  }
+
+  return map;
+}
+
 function correlateAuditUndo(db, events, wigId) {
   const relatedAuditLogs = (db.auditLogs || []).filter(log =>
     isAuditLogRelatedToWig(log, wigId, db)
   );
 
-  const undoneLogMap = new Map();
-  for (const log of relatedAuditLogs) {
-    if (log.undone) {
-      undoneLogMap.set(log.id, log);
-    }
-  }
-
   for (const event of events) {
     for (const log of relatedAuditLogs) {
       if (!log.undone) continue;
-      if (event.sourceCollection !== log.collection) continue;
-      if (event.sourceId !== log.targetId) continue;
-      const eventTime = new Date(event.at).getTime();
-      const logTime = new Date(log.createdAt).getTime();
-      if (Math.abs(eventTime - logTime) < 2000) {
+      const changedKeys = auditHistoryKeysByTarget(log).get(`${event.sourceCollection}:${event.sourceId}`);
+      if (changedKeys?.has(historyKey(event))) {
         event.undone = true;
         event.undoneAt = log.undoneAt;
         event.auditLogId = log.id;
