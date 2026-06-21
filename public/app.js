@@ -187,6 +187,110 @@ function formField(field) {
   return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" ${value} ${required}></label>`;
 }
 
+function editFormField(field, value) {
+  const required = field.required ? 'required' : '';
+  if (field.type === 'textarea') {
+    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<textarea name="${field.name}" data-edit-field="${field.name}" ${required}>${escapeHtml(value || '')}</textarea></label>`;
+  }
+  if (field.type === 'select') {
+    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${field.options.map((option) => `<option${option === value ? ' selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>`;
+  }
+  if (field.type === 'relation') {
+    let items = state.db[field.collection] || [];
+    if (field.filterByStatus) {
+      items = items.filter((item) => item.status === field.filterByStatus);
+    }
+    const options = items.map((item) => {
+      const label = field.labelFields.map((f) => item[f]).filter(Boolean).join(' / ');
+      const selected = item.id === value ? ' selected' : '';
+      return `<option value="${item.id}"${selected}>${escapeHtml(label)}</option>`;
+    }).join('');
+    return `<label class="${field.wide ? 'wide' : ''}">${field.label}<select name="${field.name}" data-edit-field="${field.name}" ${required}>${options}</select></label>`;
+  }
+  if (field.type === 'consumableList') {
+    const consumables = state.db.consumables || [];
+    const optionsHtml = consumables.map((c) => {
+      const stockInfo = getStockStatus(c);
+      return `<option value="${c.id}">${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`;
+    }).join('');
+    const rawList = value || [];
+    const qtyMap = new Map();
+    for (const c of rawList) {
+      if (c && c.consumableId && Number(c.quantity) > 0) {
+        const id = c.consumableId;
+        const qty = Number(c.quantity) || 0;
+        qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+      }
+    }
+    const existingRows = [];
+    for (const [consumableId, quantity] of qtyMap.entries()) {
+      existingRows.push({ consumableId, quantity });
+    }
+    const rowsHtml = existingRows.map((row) => `
+      <div class="consumable-row">
+        <select class="consumable-select" data-consumable-select>
+          <option value="">选择耗材</option>
+          ${consumables.map((c) => `<option value="${c.id}"${c.id === row.consumableId ? ' selected' : ''}>${escapeHtml(c.name)}（库存：${c.stock}，安全库存：${c.safeStock}）</option>`).join('')}
+        </select>
+        <input type="number" class="consumable-qty" data-consumable-qty value="${row.quantity}" min="1" placeholder="数量">
+        <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
+      </div>
+    `).join('');
+    return `<div class="consumable-list-field ${field.wide ? 'wide' : ''}">
+      <label class="consumable-field-label">${field.label}</label>
+      <div class="consumable-rows" data-consumable-rows>
+        ${rowsHtml}
+      </div>
+      <button type="button" class="ghost consumable-add-btn" data-consumable-add>
+        + 添加耗材
+      </button>
+      <template data-consumable-row-template>
+        <div class="consumable-row">
+          <select class="consumable-select" data-consumable-select>
+            <option value="">选择耗材</option>
+            ${optionsHtml}
+          </select>
+          <input type="number" class="consumable-qty" data-consumable-qty value="1" min="1" placeholder="数量">
+          <button type="button" class="ghost consumable-remove-btn" data-consumable-remove>移除</button>
+        </div>
+      </template>
+    </div>`;
+  }
+  const valAttr = value !== undefined && value !== null ? `value="${escapeHtml(value)}"` : '';
+  return `<label class="${field.wide ? 'wide' : ''}">${field.label}<input type="${field.type || 'text'}" name="${field.name}" data-edit-field="${field.name}" ${valAttr} ${required}></label>`;
+}
+
+function collectEditValues(panel, editFields) {
+  const payload = {};
+  for (const field of editFields) {
+    if (field.type === 'consumableList') {
+      const rows = panel.querySelectorAll('[data-consumable-rows] .consumable-row');
+      const qtyMap = new Map();
+      rows.forEach((row) => {
+        const select = row.querySelector('[data-consumable-select]');
+        const qtyInput = row.querySelector('[data-consumable-qty]');
+        const consumableId = select?.value;
+        const quantity = Number(qtyInput?.value || 0);
+        if (consumableId && quantity > 0) {
+          qtyMap.set(consumableId, (qtyMap.get(consumableId) || 0) + quantity);
+        }
+      });
+      const consumables = [];
+      for (const [consumableId, quantity] of qtyMap.entries()) {
+        consumables.push({ consumableId, quantity });
+      }
+      payload[field.name] = consumables;
+    } else if (field.type === 'number') {
+      const el = panel.querySelector(`[data-edit-field="${field.name}"]`);
+      payload[field.name] = Number(el?.value || 0);
+    } else {
+      const el = panel.querySelector(`[data-edit-field="${field.name}"]`);
+      payload[field.name] = el?.value ?? '';
+    }
+  }
+  return payload;
+}
+
 function pill(value, tone = '') {
   return `<span class="pill ${tone}">${escapeHtml(value || '-')}</span>`;
 }
@@ -453,6 +557,45 @@ function renderCard(item, collection, view) {
     .filter((action) => action.collection === collection)
     .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
     .join('');
+
+  let editPanelHtml = '';
+  const viewConfig = state.config.views.find((v) => v.collection === collection);
+  const editFields = viewConfig?.editFields;
+  let canEdit = false;
+  let editDisabledReason = '';
+
+  if (editFields && editFields.length > 0) {
+    canEdit = true;
+    if (collection === 'repairs' && item.status === '已完成') {
+      canEdit = false;
+      editDisabledReason = '已完成的维修单不能修改';
+    }
+    if (canEdit) {
+      const editPanelId = `edit-panel-${collection}-${item.id}`;
+      editPanelHtml = `
+        <div class="edit-form-panel" id="${editPanelId}" style="display:none;">
+          <h4>编辑${escapeHtml(viewConfig?.label || collectionLabel(collection))}</h4>
+          <div class="edit-form-items">
+            ${editFields.map((ef) => editFormField(ef, item[ef.name])).join('')}
+          </div>
+          <div class="actions">
+            <button class="secondary" data-edit-cancel="${collection}" data-edit-id="${item.id}">取消</button>
+            <button data-edit-save="${collection}" data-edit-id="${item.id}">保存修改</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  let inlineActions = '';
+  if (editFields && editFields.length > 0) {
+    if (canEdit) {
+      inlineActions = `<button class="ghost" data-edit-open="${collection}" data-edit-id="${item.id}">编辑</button>`;
+    } else if (editDisabledReason) {
+      inlineActions = `<button class="ghost" disabled title="${escapeHtml(editDisabledReason)}">编辑</button>`;
+    }
+  }
+
   let wigStatusBadge = '';
   if (view.showWigStatus && item.wigId) {
     const wigInfo = getWigStatus(item.wigId);
@@ -465,7 +608,9 @@ function renderCard(item, collection, view) {
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
     ${reviewSummary}
     ${details ? `<div class="detail${view.detailClass ? ' ' + view.detailClass : ''}">${details}</div>` : ''}
+    ${inlineActions ? `<div class="inline-actions">${inlineActions}</div>` : ''}
     ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${editPanelHtml}
     ${historyHtml(item)}
   </article>`;
 }
@@ -2202,6 +2347,54 @@ document.addEventListener('click', async (event) => {
       });
       await load();
       toast('复盘记录已更新');
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  const editOpen = event.target.closest('[data-edit-open]');
+  const editCancel = event.target.closest('[data-edit-cancel]');
+  const editSave = event.target.closest('[data-edit-save]');
+
+  if (editOpen) {
+    event.preventDefault();
+    event.stopPropagation();
+    const collection = editOpen.dataset.editOpen;
+    const id = editOpen.dataset.editId;
+    const panel = document.getElementById(`edit-panel-${collection}-${id}`);
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+  if (editCancel) {
+    event.preventDefault();
+    event.stopPropagation();
+    const collection = editCancel.dataset.editCancel;
+    const id = editCancel.dataset.editId;
+    const panel = document.getElementById(`edit-panel-${collection}-${id}`);
+    if (panel) panel.style.display = 'none';
+  }
+  if (editSave) {
+    event.preventDefault();
+    event.stopPropagation();
+    const collection = editSave.dataset.editSave;
+    const id = editSave.dataset.editId;
+    const panel = document.getElementById(`edit-panel-${collection}-${id}`);
+    if (!panel) return;
+
+    const viewConfig = state.config.views.find((v) => v.collection === collection);
+    const editFields = viewConfig?.editFields || [];
+    if (editFields.length === 0) return;
+
+    const payload = collectEditValues(panel, editFields);
+
+    try {
+      await api(`/api/${collection}/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      await load();
+      toast('保存成功');
     } catch (error) {
       toast(error.message);
     }

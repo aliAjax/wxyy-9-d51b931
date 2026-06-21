@@ -214,6 +214,10 @@ module.exports = {
         { label: '演出日期', name: 'performanceDate', type: 'date', required: true },
         { label: '可用状态', name: 'status', type: 'select', options: ['可演出', '需要维修', '紧急维修', '已归还入库', '借出中', '归还待检查'] },
         { label: '备注', name: 'note', type: 'textarea', wide: true }
+      ],
+      editFields: [
+        { label: '存放位置', name: 'location', required: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     },
     {
@@ -247,6 +251,14 @@ module.exports = {
         { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
         { label: '预计使用耗材', name: 'consumables', type: 'consumableList', wide: true },
         { label: '结果', name: 'result', type: 'textarea', wide: true }
+      ],
+      editFields: [
+        { label: '处理人', name: 'handler', type: 'relation', collection: 'staff', labelFields: ['name'], required: true },
+        { label: '截止日期', name: 'dueDate', type: 'date', required: true },
+        { label: '处理内容', name: 'details', type: 'textarea', required: true, wide: true },
+        { label: '预计使用耗材', name: 'consumables', type: 'consumableList', wide: true },
+        { label: '维修结果', name: 'result', type: 'textarea', wide: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     },
     {

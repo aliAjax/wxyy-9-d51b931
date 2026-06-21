@@ -10,10 +10,15 @@
       "location": "A柜-03",
       "status": "可演出",
       "performanceDate": "2026-07-03",
-      "note": "右侧鬓角缺发，定型松散",
+      "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
       "createdAt": "2026-06-15T08:00:00.000Z",
-      "updatedAt": "2026-06-21T02:07:39.767Z",
+      "updatedAt": "2026-06-21T03:27:03.102Z",
       "history": [
+        {
+          "at": "2026-06-21T03:27:03.102Z",
+          "action": "更新",
+          "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+        },
         {
           "at": "2026-06-21T02:07:39.767Z",
           "action": "完成维修",
@@ -48,13 +53,18 @@
       "color": "深棕",
       "capSize": "L",
       "hairline": "普通前网",
-      "location": "B柜-01",
+      "location": "B柜-99",
       "status": "归还待检查",
       "performanceDate": "2026-07-03",
-      "note": "状态良好",
+      "note": "测试归还待检查假发修改非关键字段",
       "createdAt": "2026-06-10T08:00:00.000Z",
-      "updatedAt": "2026-06-20T03:24:42.126Z",
+      "updatedAt": "2026-06-21T03:30:20.853Z",
       "history": [
+        {
+          "at": "2026-06-21T03:30:20.853Z",
+          "action": "更新",
+          "note": "测试归还待检查假发修改非关键字段"
+        },
         {
           "at": "2026-06-20T03:24:42.126Z",
           "action": "归还待检查",
@@ -578,14 +588,21 @@
         }
       ],
       "createdAt": "2026-06-21T02:11:55.295192Z",
-      "updatedAt": "2026-06-21T02:11:55.295298Z",
+      "updatedAt": "2026-06-21T03:29:08.162Z",
       "history": [
+        {
+          "at": "2026-06-21T03:29:08.162Z",
+          "action": "更新",
+          "note": "编辑测试-已更新维修结果"
+        },
         {
           "at": "2026-06-21T02:11:55.295299Z",
           "action": "创建",
           "note": "测试多耗材缺货"
         }
-      ]
+      ],
+      "result": "维修已完成，更换了受损部件，测试通过",
+      "note": "编辑测试-已更新维修结果"
     }
   ],
   "schedules": [
@@ -1228,6 +1245,300 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1782012620853-9909f",
+      "operationType": "update",
+      "collection": "wigs",
+      "targetId": "wig-seed-2",
+      "targetLabel": "王子 / 午夜花园",
+      "actionLabel": "",
+      "before": {
+        "id": "wig-seed-2",
+        "role": "王子",
+        "show": "午夜花园",
+        "color": "深棕",
+        "capSize": "L",
+        "hairline": "普通前网",
+        "location": "B柜-01",
+        "status": "归还待检查",
+        "performanceDate": "2026-07-03",
+        "note": "状态良好",
+        "createdAt": "2026-06-10T08:00:00.000Z",
+        "updatedAt": "2026-06-20T03:24:42.126Z",
+        "history": [
+          {
+            "at": "2026-06-20T03:24:42.126Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收"
+          },
+          {
+            "at": "2026-06-19T09:00:00.000Z",
+            "action": "借出",
+            "note": "借给 张晓明，用于 午夜花园"
+          },
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "演出前检查已重置"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-12T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为可演出"
+          },
+          {
+            "at": "2026-06-10T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库"
+          }
+        ]
+      },
+      "after": {
+        "id": "wig-seed-2",
+        "role": "王子",
+        "show": "午夜花园",
+        "color": "深棕",
+        "capSize": "L",
+        "hairline": "普通前网",
+        "location": "B柜-99",
+        "status": "归还待检查",
+        "performanceDate": "2026-07-03",
+        "note": "测试归还待检查假发修改非关键字段",
+        "createdAt": "2026-06-10T08:00:00.000Z",
+        "updatedAt": "2026-06-21T03:30:20.853Z",
+        "history": [
+          {
+            "at": "2026-06-21T03:30:20.853Z",
+            "action": "更新",
+            "note": "测试归还待检查假发修改非关键字段"
+          },
+          {
+            "at": "2026-06-20T03:24:42.126Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收"
+          },
+          {
+            "at": "2026-06-19T09:00:00.000Z",
+            "action": "借出",
+            "note": "借给 张晓明，用于 午夜花园"
+          },
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "演出前检查已重置"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-12T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为可演出"
+          },
+          {
+            "at": "2026-06-10T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "更新假发档案（存放位置、备注）：王子 / 午夜花园",
+      "createdAt": "2026-06-21T03:30:20.853Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782012548162-47919",
+      "operationType": "update",
+      "collection": "repairs",
+      "targetId": "repairs-test-multi-lowstock-1782007915295",
+      "targetLabel": "测试多耗材库存不足",
+      "actionLabel": "",
+      "before": {
+        "id": "repairs-test-multi-lowstock-1782007915295",
+        "wigId": "wig-seed-3",
+        "type": "测试多耗材库存不足",
+        "handler": "staff-seed-1",
+        "dueDate": "2026-07-15",
+        "status": "待检查",
+        "details": "测试多种耗材同时缺货",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 999
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 999
+          },
+          {
+            "consumableId": "consumable-seed-2",
+            "quantity": 999
+          }
+        ],
+        "createdAt": "2026-06-21T02:11:55.295192Z",
+        "updatedAt": "2026-06-21T02:11:55.295298Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:11:55.295299Z",
+            "action": "创建",
+            "note": "测试多耗材缺货"
+          }
+        ]
+      },
+      "after": {
+        "id": "repairs-test-multi-lowstock-1782007915295",
+        "wigId": "wig-seed-3",
+        "type": "测试多耗材库存不足",
+        "handler": "staff-seed-1",
+        "dueDate": "2026-07-15",
+        "status": "待检查",
+        "details": "测试多种耗材同时缺货",
+        "consumables": [
+          {
+            "consumableId": "consumable-seed-3",
+            "quantity": 999
+          },
+          {
+            "consumableId": "consumable-seed-4",
+            "quantity": 999
+          },
+          {
+            "consumableId": "consumable-seed-2",
+            "quantity": 999
+          }
+        ],
+        "createdAt": "2026-06-21T02:11:55.295192Z",
+        "updatedAt": "2026-06-21T03:29:08.162Z",
+        "history": [
+          {
+            "at": "2026-06-21T03:29:08.162Z",
+            "action": "更新",
+            "note": "编辑测试-已更新维修结果"
+          },
+          {
+            "at": "2026-06-21T02:11:55.295299Z",
+            "action": "创建",
+            "note": "测试多耗材缺货"
+          }
+        ],
+        "result": "维修已完成，更换了受损部件，测试通过",
+        "note": "编辑测试-已更新维修结果"
+      },
+      "relatedChanges": [],
+      "summary": "更新维修单（结果、备注）：测试多耗材库存不足",
+      "createdAt": "2026-06-21T03:29:08.162Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782012423102-48dcd",
+      "operationType": "update",
+      "collection": "wigs",
+      "targetId": "wig-seed-1",
+      "targetLabel": "夜游女王 / 午夜花园",
+      "actionLabel": "",
+      "before": {
+        "id": "wig-seed-1",
+        "role": "夜游女王",
+        "show": "午夜花园",
+        "color": "银灰混蓝",
+        "capSize": "M",
+        "hairline": "手勾蕾丝前额",
+        "location": "A柜-03",
+        "status": "可演出",
+        "performanceDate": "2026-07-03",
+        "note": "右侧鬓角缺发，定型松散",
+        "createdAt": "2026-06-15T08:00:00.000Z",
+        "updatedAt": "2026-06-21T02:07:39.767Z",
+        "history": [
+          {
+            "at": "2026-06-21T02:07:39.767Z",
+            "action": "完成维修",
+            "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+          },
+          {
+            "at": "2026-06-20T03:35:06.188Z",
+            "action": "归还检查不通过",
+            "note": "发现问题：发网破损，需要维修"
+          },
+          {
+            "at": "2026-06-20T03:35:06.157Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收"
+          },
+          {
+            "at": "2026-06-18T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为需要维修"
+          },
+          {
+            "at": "2026-06-15T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库"
+          }
+        ]
+      },
+      "after": {
+        "id": "wig-seed-1",
+        "role": "夜游女王",
+        "show": "午夜花园",
+        "color": "银灰混蓝",
+        "capSize": "M",
+        "hairline": "手勾蕾丝前额",
+        "location": "A柜-03",
+        "status": "可演出",
+        "performanceDate": "2026-07-03",
+        "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+        "createdAt": "2026-06-15T08:00:00.000Z",
+        "updatedAt": "2026-06-21T03:27:03.102Z",
+        "history": [
+          {
+            "at": "2026-06-21T03:27:03.102Z",
+            "action": "更新",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+          },
+          {
+            "at": "2026-06-21T02:07:39.767Z",
+            "action": "完成维修",
+            "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+          },
+          {
+            "at": "2026-06-20T03:35:06.188Z",
+            "action": "归还检查不通过",
+            "note": "发现问题：发网破损，需要维修"
+          },
+          {
+            "at": "2026-06-20T03:35:06.157Z",
+            "action": "归还待检查",
+            "note": "演员已归还，待检查验收"
+          },
+          {
+            "at": "2026-06-18T10:00:00.000Z",
+            "action": "演出前检查",
+            "note": "标记为需要维修"
+          },
+          {
+            "at": "2026-06-15T08:00:00.000Z",
+            "action": "创建",
+            "note": "建档入库"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "更新假发档案（备注）：夜游女王 / 午夜花园",
+      "createdAt": "2026-06-21T03:27:03.102Z",
+      "undone": false,
+      "undoneAt": null
+    },
     {
       "id": "audit-1782007858088-18b03",
       "operationType": "action",

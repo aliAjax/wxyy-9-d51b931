@@ -52,6 +52,21 @@ function getTargetLabel(collection, item) {
   return labelMap[collection] ? labelMap[collection]() : item.id;
 }
 
+function getFieldLabelMap(collection) {
+  const view = config.views?.find((v) => v.collection === collection);
+  const map = {};
+  for (const field of view?.fields || []) {
+    map[field.name] = field.label;
+  }
+  const extraMap = {
+    role: '角色', show: '剧目', color: '发色', capSize: '发网尺寸', hairline: '发际线类型',
+    location: '存放位置', performanceDate: '演出日期', status: '状态', note: '备注',
+    type: '类型', handler: '处理人', dueDate: '截止日期', details: '处理内容',
+    result: '维修结果', consumables: '耗材清单', wigId: '关联假发'
+  };
+  return { ...extraMap, ...map };
+}
+
 function getSummary(operationType, collection, before, after, actionLabel) {
   const label = config.collections[collection]?.label || collection;
   const targetLabel = getTargetLabel(collection, after || before);
@@ -66,11 +81,12 @@ function getSummary(operationType, collection, before, after, actionLabel) {
     return `动作「${actionLabel}」：${targetLabel}`;
   }
   const changedFields = [];
+  const labelMap = getFieldLabelMap(collection);
   if (before && after) {
     for (const key of Object.keys(after)) {
       if (['updatedAt', 'history'].includes(key)) continue;
       if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
-        changedFields.push(key);
+        changedFields.push(labelMap[key] || key);
       }
     }
   }
@@ -636,6 +652,12 @@ app.patch('/api/:collection/:id', async (req, res) => {
 
   if ((collection === 'wigs' || collection === 'lendings') && req.body.status !== undefined && req.body.status !== item.status) {
     return res.status(409).json({ error: '不能直接修改状态字段，请使用专用动作接口' });
+  }
+
+  if (collection === 'wigs' && (item.status === '借出中' || item.status === '归还待检查')) {
+    if (req.body.status !== undefined && req.body.status !== item.status) {
+      return res.status(409).json({ error: '借出中或归还待检查的假发不能直接修改可用状态，请先完成归还检查' });
+    }
   }
 
   if (collection === 'repairs' && item.status === '已完成') {

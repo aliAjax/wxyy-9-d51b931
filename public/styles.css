@@ -2008,3 +2008,32 @@ td.import-col-num {
     width: 100%;
   }
 }
+
+.edit-form-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px solid var(--line);
+}
+
+.edit-form-panel h4 {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.edit-form-items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.edit-form-items .wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 620px) {
+  .edit-form-items {
+    grid-template-columns: 1fr;
+  }
+}
