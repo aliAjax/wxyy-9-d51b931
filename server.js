@@ -589,7 +589,16 @@ app.post('/api/:collection', async (req, res) => {
     const consumables = Array.isArray(body.consumables)
       ? body.consumables.filter(c => c && c.consumableId && Number(c.quantity) > 0)
       : [];
-    body.consumables = consumables;
+    const qtyMap = new Map();
+    for (const c of consumables) {
+      const id = c.consumableId;
+      const qty = Number(c.quantity) || 0;
+      qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+    }
+    body.consumables = [];
+    for (const [consumableId, quantity] of qtyMap.entries()) {
+      body.consumables.push({ consumableId, quantity });
+    }
   }
 
   let historyNote = body.note || body.memo || '';
@@ -640,9 +649,19 @@ app.patch('/api/:collection/:id', async (req, res) => {
   delete body.historyAction;
 
   if (collection === 'repairs' && body.consumables !== undefined) {
-    body.consumables = Array.isArray(body.consumables)
+    const consumables = Array.isArray(body.consumables)
       ? body.consumables.filter(c => c && c.consumableId && Number(c.quantity) > 0)
       : [];
+    const qtyMap = new Map();
+    for (const c of consumables) {
+      const id = c.consumableId;
+      const qty = Number(c.quantity) || 0;
+      qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+    }
+    body.consumables = [];
+    for (const [consumableId, quantity] of qtyMap.entries()) {
+      body.consumables.push({ consumableId, quantity });
+    }
   }
 
   Object.assign(item, body, { updatedAt: new Date().toISOString() });
@@ -650,16 +669,28 @@ app.patch('/api/:collection/:id', async (req, res) => {
 
   let historyNote = body.note || body.memo || '';
   if (collection === 'repairs' && body.consumables !== undefined) {
-    const beforeNames = (itemBefore?.consumables || [])
+    const dedup = (arr) => {
+      const qtyMap = new Map();
+      for (const c of (arr || [])) {
+        if (c && c.consumableId && Number(c.quantity) > 0) {
+          const id = c.consumableId;
+          const qty = Number(c.quantity) || 0;
+          qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+        }
+      }
+      const result = [];
+      for (const [consumableId, quantity] of qtyMap.entries()) {
+        result.push({ consumableId, quantity });
+      }
+      return result;
+    };
+    const formatNames = (arr) => dedup(arr)
       .map(c => {
         const cItem = db.consumables?.find(x => x.id === c.consumableId);
         return `${cItem?.name || c.consumableId} × ${c.quantity}`;
       }).join('、');
-    const afterNames = body.consumables
-      .map(c => {
-        const cItem = db.consumables?.find(x => x.id === c.consumableId);
-        return `${cItem?.name || c.consumableId} × ${c.quantity}`;
-      }).join('、');
+    const beforeNames = formatNames(itemBefore?.consumables);
+    const afterNames = formatNames(body.consumables);
     if (beforeNames !== afterNames) {
       historyNote = historyNote
         ? `${historyNote}；耗材变更：${beforeNames || '无'} → ${afterNames || '无'}`
@@ -901,16 +932,24 @@ function runAction(db, action, item) {
     const consumableChanges = [];
     const consumableNames = [];
 
+    const qtyMap = new Map();
     for (const c of item.consumables) {
-      const consumable = db.consumables?.find(x => x.id === c.consumableId);
+      const id = c.consumableId;
+      const qty = Number(c.quantity) || 0;
+      if (id && qty > 0) {
+        qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+      }
+    }
+
+    for (const [consumableId, totalQty] of qtyMap.entries()) {
+      const consumable = db.consumables?.find(x => x.id === consumableId);
       if (!consumable) {
-        stockErrors.push(`耗材「${c.consumableId}」不存在`);
+        stockErrors.push(`耗材「${consumableId}」不存在`);
         continue;
       }
-      const qty = Number(c.quantity) || 0;
       const stock = Number(consumable.stock) || 0;
-      if (qty > stock) {
-        stockErrors.push(`${consumable.name}：需要 ${qty}，库存 ${stock}，缺口 ${qty - stock}`);
+      if (totalQty > stock) {
+        stockErrors.push(`${consumable.name}：需要 ${totalQty}，库存 ${stock}，缺口 ${totalQty - stock}`);
       }
     }
 
@@ -918,12 +957,11 @@ function runAction(db, action, item) {
       return { error: `耗材库存不足，无法完成维修：${stockErrors.join('；')}` };
     }
 
-    for (const c of item.consumables) {
-      const consumable = db.consumables?.find(x => x.id === c.consumableId);
+    for (const [consumableId, totalQty] of qtyMap.entries()) {
+      const consumable = db.consumables?.find(x => x.id === consumableId);
       if (!consumable) continue;
-      const qty = Number(c.quantity) || 0;
       const consumableBefore = deepClone(consumable);
-      consumable.stock = (Number(consumable.stock) || 0) - qty;
+      consumable.stock = (Number(consumable.stock) || 0) - totalQty;
       consumable.updatedAt = new Date().toISOString();
       consumable.history = consumable.history || [];
       let unit = '个';
@@ -934,14 +972,14 @@ function runAction(db, action, item) {
       } else if (consumable.name?.includes('发束') || consumable.name?.includes('发网') || consumable.name?.includes('蕾丝')) {
         unit = '片';
       }
-      consumable.history.unshift(stamp('使用', `用于维修单「${item.type}」，使用 ${qty}${unit}`));
+      consumable.history.unshift(stamp('使用', `用于维修单「${item.type}」，使用 ${totalQty}${unit}`));
       consumableChanges.push({
         collection: 'consumables',
         targetId: consumable.id,
         before: consumableBefore,
         after: deepClone(consumable)
       });
-      consumableNames.push(`${consumable.name} × ${qty}`);
+      consumableNames.push(`${consumable.name} × ${totalQty}`);
     }
 
     if (consumableNames.length > 0) {

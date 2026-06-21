@@ -216,16 +216,20 @@ function values(form, view) {
     if (field.type === 'number') payload[field.name] = Number(payload[field.name] || 0);
     if (field.type === 'consumableList') {
       const rows = form.querySelectorAll('[data-consumable-rows] .consumable-row');
-      const consumables = [];
+      const qtyMap = new Map();
       rows.forEach((row) => {
-        const select = row.querySelector('.consumable-select');
-        const qtyInput = row.querySelector('.consumable-qty');
+        const select = row.querySelector('[data-consumable-select]');
+        const qtyInput = row.querySelector('[data-consumable-qty]');
         const consumableId = select?.value;
         const quantity = Number(qtyInput?.value || 0);
         if (consumableId && quantity > 0) {
-          consumables.push({ consumableId, quantity });
+          qtyMap.set(consumableId, (qtyMap.get(consumableId) || 0) + quantity);
         }
       });
+      const consumables = [];
+      for (const [consumableId, quantity] of qtyMap.entries()) {
+        consumables.push({ consumableId, quantity });
+      }
       payload[field.name] = consumables;
     }
   }
@@ -368,7 +372,19 @@ function renderCard(item, collection, view) {
     } else if (field.type === 'relation') {
       value = relationLabel(field, item[field.name]);
     } else if (field.type === 'consumableList') {
-      const list = item[field.name] || [];
+      const rawList = item[field.name] || [];
+      const qtyMap = new Map();
+      for (const c of rawList) {
+        if (c && c.consumableId && Number(c.quantity) > 0) {
+          const id = c.consumableId;
+          const qty = Number(c.quantity) || 0;
+          qtyMap.set(id, (qtyMap.get(id) || 0) + qty);
+        }
+      }
+      const list = [];
+      for (const [consumableId, quantity] of qtyMap.entries()) {
+        list.push({ consumableId, quantity });
+      }
       if (list.length === 0) {
         value = '无';
       } else {
