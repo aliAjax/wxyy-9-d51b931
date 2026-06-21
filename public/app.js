@@ -1971,11 +1971,9 @@ function renderAvailabilityWarningsView(view) {
         <h3>风险清单（按处理状态 → 演出日期排序）</h3>
         <div class="availability-filters">
           <select id="warnings-status-filter">
-            <option value="">全部处理状态</option>
-            <option value="pending"${curStatusFilter === 'pending' ? ' selected' : ''}>待处理</option>
-            <option value="confirmed"${curStatusFilter === 'confirmed' ? ' selected' : ''}>已确认</option>
-            <option value="ignored"${curStatusFilter === 'ignored' ? ' selected' : ''}>暂时忽略</option>
-            <option value="maintenance"${curStatusFilter === 'maintenance' ? ' selected' : ''}>已转维修跟进</option>
+            ${(stats.statusOptions || []).map((opt) => `
+              <option value="${escapeHtml(opt.value)}"${curStatusFilter === opt.value ? ' selected' : ''}>${escapeHtml(opt.label)}</option>
+            `).join('')}
           </select>
           <select id="warnings-level-filter">
             <option value="">全部风险等级</option>
@@ -2066,11 +2064,12 @@ async function loadAvailabilityWarnings(startDate, endDate, statusFilter) {
 async function load() {
   const warningsStart = $('#warnings-date-start')?.value || '';
   const warningsEnd = $('#warnings-date-end')?.value || '';
+  const warningsStatus = $('#warnings-status-filter')?.value ?? state.warningStatusFilter;
   const [db, staffStats, dispatchBoard, availabilityWarnings] = await Promise.all([
     api('/api/db'),
     api('/api/staff-stats'),
     api('/api/dispatch-board'),
-    loadAvailabilityWarnings(warningsStart, warningsEnd)
+    loadAvailabilityWarnings(warningsStart, warningsEnd, warningsStatus)
   ]);
   state.db = db;
   state.staffStats = staffStats;
@@ -2373,7 +2372,8 @@ document.addEventListener('click', async (event) => {
     if (state._warningsDebounceTimer) {
       clearTimeout(state._warningsDebounceTimer);
     }
-    loadAvailabilityWarnings('', '').then(() => {
+    const statusFilter = $('#warnings-status-filter')?.value;
+    loadAvailabilityWarnings('', '', statusFilter).then(() => {
       render();
       setTab(state.activeTab);
     }).catch((error) => {
@@ -2849,7 +2849,7 @@ document.addEventListener('click', async (event) => {
   }
 });
 
-document.addEventListener('input', (event) => {
+document.addEventListener('input', async (event) => {
   const view = state.config.views.find((entry) => entry.id && (
     event.target.id === `search-${entry.id}` ||
     event.target.id === `status-${entry.id}` ||
@@ -2868,15 +2868,33 @@ document.addEventListener('input', (event) => {
     }
   }
 
-  if (event.target.id === 'warnings-level-filter' || event.target.id === 'warnings-type-filter' || event.target.id === 'warnings-status-filter') {
+  if (event.target.id === 'warnings-status-filter') {
+    const statusFilter = $('#warnings-status-filter')?.value;
+    state.warningStatusFilter = statusFilter;
+    const startDate = $('#warnings-date-start')?.value || '';
+    const endDate = $('#warnings-date-end')?.value || '';
+    try {
+      await loadAvailabilityWarnings(startDate, endDate, statusFilter);
+      const listEl = $('#warnings-list');
+      if (listEl) {
+        const warnings = state.availabilityWarnings.warnings || [];
+        listEl.innerHTML = warnings.length
+          ? warnings.map(renderWarningCard).join('')
+          : '<div class="empty">没有符合筛选条件的预警</div>';
+      }
+      render();
+      setTab('availabilityWarnings');
+    } catch (error) {
+      toast(error.message || '加载失败');
+    }
+  }
+
+  if (event.target.id === 'warnings-level-filter' || event.target.id === 'warnings-type-filter') {
     const levelFilter = $('#warnings-level-filter')?.value || '';
     const typeFilter = $('#warnings-type-filter')?.value || '';
-    const statusFilter = $('#warnings-status-filter')?.value || '';
-    state.warningStatusFilter = statusFilter;
     let warnings = state.availabilityWarnings.warnings || [];
     if (levelFilter) warnings = warnings.filter((w) => w.riskLevel === levelFilter);
     if (typeFilter) warnings = warnings.filter((w) => w.riskType === typeFilter);
-    if (statusFilter) warnings = warnings.filter((w) => (w.status || 'pending') === statusFilter);
     const listEl = $('#warnings-list');
     if (listEl) {
       listEl.innerHTML = warnings.length
@@ -2892,8 +2910,9 @@ document.addEventListener('input', (event) => {
     state._warningsDebounceTimer = setTimeout(async () => {
       const startDate = $('#warnings-date-start')?.value || '';
       const endDate = $('#warnings-date-end')?.value || '';
+      const statusFilter = $('#warnings-status-filter')?.value;
       try {
-        await loadAvailabilityWarnings(startDate, endDate);
+        await loadAvailabilityWarnings(startDate, endDate, statusFilter);
         const warningsView = state.config.views.find((v) => v.type === 'availabilityWarnings');
         if (warningsView && state.activeTab === warningsView.id) {
           const listEl = $('#warnings-list');

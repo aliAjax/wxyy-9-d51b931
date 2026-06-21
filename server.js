@@ -1731,6 +1731,7 @@ app.get('/api/availability-warnings', async (req, res) => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const now = new Date().toISOString();
 
   const warnings = [];
   const warningId = (prefix, scheduleId, wigId) =>
@@ -1943,8 +1944,37 @@ app.get('/api/availability-warnings', async (req, res) => {
       if (saved.status === WARNING_STATUS.IGNORED && saved.riskKey === w.riskKey) {
         w.status = WARNING_STATUS.IGNORED;
       } else if (saved.status === WARNING_STATUS.IGNORED && saved.riskKey !== w.riskKey) {
+        const oldRiskKey = saved.riskKey;
+        const newRiskKey = w.riskKey;
+        const savedBefore = deepClone(saved);
+
         w.status = WARNING_STATUS.PENDING;
         w.riskChanged = true;
+        w.previousIgnoredHandler = saved.handler;
+        w.previousIgnoredNote = saved.handleNote;
+
+        saved.status = WARNING_STATUS.PENDING;
+        saved.riskKey = newRiskKey;
+        saved.updatedAt = now;
+        saved.history = saved.history || [];
+        const autoReopenNote = `风险条件已变化，自动重新打开。原风险签名：${oldRiskKey} → 新风险签名：${newRiskKey}`;
+        saved.history.unshift(stamp('自动重开', autoReopenNote));
+
+        createAuditLog(db, 'update', 'warningStatuses', saved.id, savedBefore, deepClone(saved), {
+          actionLabel: '预警自动重开',
+          autoReopen: true,
+          oldRiskKey,
+          newRiskKey,
+          previousStatus: WARNING_STATUS.IGNORED
+        });
+
+        db._warningReopened = db._warningReopened || [];
+        db._warningReopened.push({
+          warningId: w.id,
+          oldRiskKey,
+          newRiskKey,
+          reopenedAt: now
+        });
       } else {
         w.status = saved.status;
       }
@@ -1962,9 +1992,20 @@ app.get('/api/availability-warnings', async (req, res) => {
     }
   }
 
+  if (db._warningReopened) {
+    const reopenedCount = db._warningReopened.length;
+    delete db._warningReopened;
+    if (reopenedCount > 0) {
+      await writeDb(db);
+    }
+  }
+
   let filteredWarnings = warnings;
-  if (statusFilter) {
+  const isDefaultFilter = !statusFilter;
+  if (statusFilter && statusFilter !== 'all') {
     filteredWarnings = warnings.filter((w) => w.status === statusFilter);
+  } else if (!statusFilter) {
+    filteredWarnings = warnings.filter((w) => w.status !== WARNING_STATUS.IGNORED);
   }
 
   filteredWarnings.sort((a, b) => {
@@ -2005,7 +2046,12 @@ app.get('/api/availability-warnings', async (req, res) => {
     }).length,
     totalPerformances: dateFilteredSchedules.length,
     hasDateFilter: !!(startDate || endDate),
-    statusOptions: Object.entries(WARNING_STATUS_LABEL).map(([value, label]) => ({ value, label }))
+    isDefaultFilter,
+    statusOptions: [
+      { value: '', label: '全部（不含已忽略）' },
+      ...Object.entries(WARNING_STATUS_LABEL).map(([value, label]) => ({ value, label })),
+      { value: 'all', label: '全部（含已忽略）' }
+    ]
   };
 
   res.json({ warnings: filteredWarnings, stats });
