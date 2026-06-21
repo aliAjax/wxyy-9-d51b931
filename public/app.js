@@ -367,12 +367,23 @@ function getPendingReviewCount() {
 
 function isLendingOverdue(item) {
   if (!item || !item.expectedReturnDate) return false;
-  if (item.status !== '借出中' && item.status !== '归还待检查') return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const expected = new Date(item.expectedReturnDate);
   expected.setHours(0, 0, 0, 0);
-  return expected < today;
+
+  if (item.status === '借出中') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expected < today;
+  }
+
+  if (item.status === '归还待检查') {
+    if (!item.actualReturnDate) return false;
+    const actual = new Date(item.actualReturnDate);
+    actual.setHours(0, 0, 0, 0);
+    return expected < actual;
+  }
+
+  return false;
 }
 
 function renderStats() {

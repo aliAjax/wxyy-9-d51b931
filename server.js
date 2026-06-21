@@ -462,12 +462,23 @@ app.post('/api/lendings', async (req, res) => {
 
 function isLendingOverdue(lending) {
   if (!lending || !lending.expectedReturnDate) return false;
-  if (lending.status !== '借出中' && lending.status !== '归还待检查') return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const expected = new Date(lending.expectedReturnDate);
   expected.setHours(0, 0, 0, 0);
-  return expected < today;
+
+  if (lending.status === '借出中') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expected < today;
+  }
+
+  if (lending.status === '归还待检查') {
+    if (!lending.actualReturnDate) return false;
+    const actual = new Date(lending.actualReturnDate);
+    actual.setHours(0, 0, 0, 0);
+    return expected < actual;
+  }
+
+  return false;
 }
 
 app.patch('/api/lendings/:id/check', async (req, res) => {
