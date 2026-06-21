@@ -1246,6 +1246,42 @@
   ],
   "auditLogs": [
     {
+      "id": "audit-1782019811194-d4c80",
+      "operationType": "update",
+      "collection": "warningStatuses",
+      "targetId": "ws-1782019811194-00152",
+      "targetLabel": "已确认 - 午夜花园 夜游女王",
+      "actionLabel": "预警已确认",
+      "before": null,
+      "after": {
+        "id": "ws-1782019811194-00152",
+        "warningId": "preCheckFail-schedule-seed-1-preChecklist-seed-1",
+        "status": "confirmed",
+        "handler": "",
+        "handleNote": "测试：已确认风险存在",
+        "handledAt": "2026-06-21T05:30:11.194Z",
+        "riskKey": "preCheckPending::schedule-seed-1::wig-seed-1::preChecklist-seed-1::检查不通过::2026-06-18T10:30:00.000Z::右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "scheduleId": "schedule-seed-1",
+        "wigId": "wig-seed-1",
+        "createdAt": "2026-06-21T05:30:11.194Z",
+        "updatedAt": "2026-06-21T05:30:11.194Z",
+        "history": [
+          {
+            "at": "2026-06-21T05:30:11.194Z",
+            "action": "已确认",
+            "note": "测试：已确认风险存在"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "更新warningStatuses：已确认 - 午夜花园 夜游女王",
+      "createdAt": "2026-06-21T05:30:11.194Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
       "id": "audit-1782012620853-9909f",
       "operationType": "update",
       "collection": "wigs",
@@ -2106,6 +2142,30 @@
       "createdAt": "2026-06-21T02:06:17.271Z",
       "undone": false,
       "undoneAt": null
+    }
+  ],
+  "warningStatuses": [
+    {
+      "id": "ws-1782019811194-00152",
+      "warningId": "preCheckFail-schedule-seed-1-preChecklist-seed-1",
+      "status": "confirmed",
+      "handler": "",
+      "handleNote": "测试：已确认风险存在",
+      "handledAt": "2026-06-21T05:30:11.194Z",
+      "riskKey": "preCheckPending::schedule-seed-1::wig-seed-1::preChecklist-seed-1::检查不通过::2026-06-18T10:30:00.000Z::右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落",
+      "show": "午夜花园",
+      "role": "夜游女王",
+      "scheduleId": "schedule-seed-1",
+      "wigId": "wig-seed-1",
+      "createdAt": "2026-06-21T05:30:11.194Z",
+      "updatedAt": "2026-06-21T05:30:11.194Z",
+      "history": [
+        {
+          "at": "2026-06-21T05:30:11.194Z",
+          "action": "已确认",
+          "note": "测试：已确认风险存在"
+        }
+      ]
     }
   ]
 }

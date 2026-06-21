@@ -27,7 +27,11 @@ module.exports = {
     '待复盘': 'warn',
     '高风险': 'bad',
     '中风险': 'warn',
-    '低风险': 'ok'
+    '低风险': 'ok',
+    '待处理': 'warn',
+    '已确认': 'warn',
+    '暂时忽略': 'muted',
+    '已转维修跟进': 'ok'
   },
   collections: {
     wigs: { label: '假发档案' },

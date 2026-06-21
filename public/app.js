@@ -1792,6 +1792,39 @@ function renderRiskTypeLabel(type) {
   return map[type] || type;
 }
 
+const WARNING_STATUS_LABEL = {
+  pending: '待处理',
+  confirmed: '已确认',
+  ignored: '暂时忽略',
+  maintenance: '已转维修跟进'
+};
+
+function renderWarningStatusLabel(status) {
+  return WARNING_STATUS_LABEL[status] || status || '待处理';
+}
+
+function warningStatusTone(status) {
+  const map = {
+    pending: 'warn',
+    confirmed: 'warn',
+    ignored: 'muted',
+    maintenance: 'ok'
+  };
+  return map[status] || '';
+}
+
+function staffOptionListAll(includeCurrent = true, currentHandler = '') {
+  const staff = state.db.staff || [];
+  const options = staff
+    .filter((person) => includeCurrent || person.id !== currentHandler)
+    .map((person) => {
+      const label = [person.name, person.specialty].filter(Boolean).join(' / ');
+      return `<option value="${person.id}"${person.id === currentHandler ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    })
+    .join('');
+  return `<option value="">选择处理人</option>${options}`;
+}
+
 function renderWarningCard(item) {
   const levelTone = item.riskLevel === 'high' ? 'bad' : item.riskLevel === 'medium' ? 'warn' : 'ok';
   const levelLabel = item.riskLevel === 'high' ? '高风险' : item.riskLevel === 'medium' ? '中风险' : '低风险';
@@ -1808,6 +1841,11 @@ function renderWarningCard(item) {
   if (item.riskLevel === 'high') cardClass += ' warning-high';
   else if (item.riskLevel === 'medium') cardClass += ' warning-medium';
 
+  const status = item.status || 'pending';
+  const statusTone = warningStatusTone(status);
+  const statusLabel = renderWarningStatusLabel(status);
+  const statusBadge = pill(statusLabel, statusTone);
+
   const relatedInfo = item.relatedItems?.lending?.actor
     ? `<div class="meta">使用人：${escapeHtml(item.relatedItems.lending.actor)}${item.relatedItems.lending.expectedReturnDate ? `，预计归还：${escapeHtml(item.relatedItems.lending.expectedReturnDate)}` : ''}</div>`
     : '';
@@ -1815,12 +1853,28 @@ function renderWarningCard(item) {
     ? `<div class="meta">维修处理人：${escapeHtml(relationLabel({ collection: 'staff', labelFields: ['name'] }, item.relatedItems.repair.handler))}${item.relatedItems.repair.dueDate ? `，截止：${escapeHtml(item.relatedItems.repair.dueDate)}` : ''}</div>`
     : '';
 
-  return `<article class="${cardClass}" data-warning-id="${item.id}" data-wig-id="${item.wigId}" data-performance-date="${item.performanceDate}" data-show="${escapeHtml(item.show || '')}" data-role="${escapeHtml(item.role || '')}">
+  let handleInfo = '';
+  if (item.handledAt) {
+    const handledLabel = item.handlerName || item.handler || '未指定处理人';
+    const noteLine = item.handleNote ? `<div class="meta warning-handle-note">处理备注：${escapeHtml(item.handleNote)}</div>` : '';
+    handleInfo = `<div class="warning-handle-info">
+      <div class="meta warning-handle-meta">处理人：${escapeHtml(handledLabel)} · 处理时间：${escapeHtml(fmtDate(item.handledAt))}</div>
+      ${noteLine}
+    </div>`;
+  }
+
+  const riskChangedBadge = item.riskChanged
+    ? `<span class="pill accent" title="相关数据已变化，原忽略状态已重置">风险已变化</span>`
+    : '';
+
+  return `<article class="${cardClass}" data-warning-id="${item.id}" data-wig-id="${item.wigId}" data-performance-date="${item.performanceDate}" data-show="${escapeHtml(item.show || '')}" data-role="${escapeHtml(item.role || '')}" data-risk-key="${escapeHtml(item.riskKey || '')}" data-status="${escapeHtml(status)}">
     <div class="card-head">
       <h3>${escapeHtml(item.title)}</h3>
       <div class="warning-badges">
         ${pill(levelLabel, levelTone)}
         ${pill(renderRiskTypeLabel(item.riskType), '')}
+        ${statusBadge}
+        ${riskChangedBadge}
       </div>
     </div>
     <div class="warning-schedule-info">
@@ -1832,11 +1886,13 @@ function renderWarningCard(item) {
     <p class="warning-description">${escapeHtml(item.description)}</p>
     ${relatedInfo}
     ${handlerInfo}
+    ${handleInfo}
     <div class="actions warning-actions">
       ${item.actions.map((a) => a.type === 'link'
         ? `<button class="ghost" data-warning-nav="${a.target}">${escapeHtml(a.label)}</button>`
         : `<button class="${a.id === 'create-repair' ? 'danger' : 'ghost'}" data-warning-action="${a.id}" data-lending-id="${a.lendingId || ''}" data-prechecklist-id="${a.preChecklistId || ''}" data-repair-id="${a.repairId || ''}">${escapeHtml(a.label)}</button>`
       ).join('')}
+      <button class="ghost" data-warning-set-status>标记处理状态</button>
     </div>
   </article>`;
 }
@@ -1844,9 +1900,11 @@ function renderWarningCard(item) {
 function renderAvailabilityWarningsView(view) {
   const { warnings = [], stats = {} } = state.availabilityWarnings;
   const byType = stats.byType || {};
+  const byStatus = stats.byStatus || { pending: 0, confirmed: 0, ignored: 0, maintenance: 0 };
   const dateFilterInfo = stats.hasDateFilter
     ? `<span class="pill accent">日期筛选中 · 共 ${stats.totalPerformances || 0} 场演出</span>`
     : '';
+  const curStatusFilter = state.warningStatusFilter || '';
 
   return `<section class="view" id="${view.id}">
     <div class="availability-header">
@@ -1875,6 +1933,24 @@ function renderAvailabilityWarningsView(view) {
       <div class="stat warning-stat-medium"><span>中风险</span><strong>${stats.medium || 0}</strong></div>
       <div class="stat"><span>预警总数</span><strong>${stats.total || 0}</strong></div>
     </div>
+    <div class="availability-status-stats">
+      <div class="type-stat-item">
+        <span class="pill ${byStatus.pending > 0 ? 'warn' : ''}">待处理</span>
+        <strong>${byStatus.pending || 0}</strong>
+      </div>
+      <div class="type-stat-item">
+        <span class="pill ${byStatus.maintenance > 0 ? 'ok' : ''}">已转维修跟进</span>
+        <strong>${byStatus.maintenance || 0}</strong>
+      </div>
+      <div class="type-stat-item">
+        <span class="pill ${byStatus.confirmed > 0 ? 'warn' : ''}">已确认</span>
+        <strong>${byStatus.confirmed || 0}</strong>
+      </div>
+      <div class="type-stat-item">
+        <span class="pill ${byStatus.ignored > 0 ? 'muted' : ''}">暂时忽略</span>
+        <strong>${byStatus.ignored || 0}</strong>
+      </div>
+    </div>
     <div class="availability-type-stats">
       ${[
         { key: 'wigUnavailable', label: '假发不可用', tone: 'bad' },
@@ -1892,8 +1968,15 @@ function renderAvailabilityWarningsView(view) {
     </div>
     <div class="panel">
       <div class="availability-toolbar">
-        <h3>风险清单（按演出日期排序）</h3>
+        <h3>风险清单（按处理状态 → 演出日期排序）</h3>
         <div class="availability-filters">
+          <select id="warnings-status-filter">
+            <option value="">全部处理状态</option>
+            <option value="pending"${curStatusFilter === 'pending' ? ' selected' : ''}>待处理</option>
+            <option value="confirmed"${curStatusFilter === 'confirmed' ? ' selected' : ''}>已确认</option>
+            <option value="ignored"${curStatusFilter === 'ignored' ? ' selected' : ''}>暂时忽略</option>
+            <option value="maintenance"${curStatusFilter === 'maintenance' ? ' selected' : ''}>已转维修跟进</option>
+          </select>
           <select id="warnings-level-filter">
             <option value="">全部风险等级</option>
             <option value="high">仅高风险</option>
@@ -1914,6 +1997,37 @@ function renderAvailabilityWarningsView(view) {
         ${warnings.length
           ? warnings.map(renderWarningCard).join('')
           : '<div class="empty">太棒了！近期演出没有可用性风险 🎉</div>'}
+      </div>
+    </div>
+    <div id="warning-status-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>标记预警处理状态</h3>
+          <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="warning-status-info" class="warning-status-info"></div>
+          <label>处理状态
+            <select id="warning-status-select">
+              <option value="pending">待处理</option>
+              <option value="confirmed">已确认</option>
+              <option value="ignored">暂时忽略</option>
+              <option value="maintenance">已转维修跟进</option>
+            </select>
+          </label>
+          <label>处理人
+            <select id="warning-status-handler">
+              ${staffOptionListAll()}
+            </select>
+          </label>
+          <label>处理备注
+            <textarea id="warning-status-note" placeholder="可选：说明处理情况、风险确认理由、转维修跟进的说明等"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary" data-modal-close>取消</button>
+          <button id="warning-status-confirm" class="primary">确认保存</button>
+        </div>
       </div>
     </div>
   </section>`;
@@ -1937,10 +2051,12 @@ function render() {
   setTab(state.activeTab || state.config.views[0].id);
 }
 
-async function loadAvailabilityWarnings(startDate, endDate) {
+async function loadAvailabilityWarnings(startDate, endDate, statusFilter) {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
+  const statusToUse = statusFilter !== undefined ? statusFilter : (state.warningStatusFilter || '');
+  if (statusToUse) params.append('status', statusToUse);
   const query = params.toString() ? `?${params.toString()}` : '';
   const result = await api(`/api/availability-warnings${query}`);
   state.availabilityWarnings = result;
@@ -2622,6 +2738,81 @@ document.addEventListener('click', async (event) => {
     }
   }
 
+  const warningSetStatusBtn = event.target.closest('[data-warning-set-status]');
+  if (warningSetStatusBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const card = warningSetStatusBtn.closest('.warning-card');
+    if (!card) return;
+
+    const warningId = card.dataset.warningId;
+    const curStatus = card.dataset.status || 'pending';
+    const riskKey = card.dataset.riskKey || '';
+    const warnings = state.availabilityWarnings.warnings || [];
+    const warning = warnings.find((w) => w.id === warningId);
+
+    const modal = $('#warning-status-modal');
+    if (!modal) return;
+
+    const infoEl = $('#warning-status-info');
+    const statusSelect = $('#warning-status-select');
+    const handlerSelect = $('#warning-status-handler');
+    const noteInput = $('#warning-status-note');
+
+    if (infoEl && warning) {
+      infoEl.innerHTML = `
+        <div class="warning-status-info-inner">
+          <strong>${escapeHtml(warning.title)}</strong>
+          <div class="meta">${escapeHtml(warning.show || '-')} · ${escapeHtml(warning.role || '-')} · ${escapeHtml(warning.performanceDate || '')}</div>
+          <div class="meta">${escapeHtml(warning.description || '')}</div>
+        </div>
+      `;
+    }
+
+    if (statusSelect) statusSelect.value = curStatus;
+    if (handlerSelect) handlerSelect.innerHTML = staffOptionListAll(true, warning?.handler || '');
+    if (noteInput) noteInput.value = warning?.handleNote || '';
+
+    modal.dataset.warningId = warningId;
+    modal.dataset.riskKey = riskKey;
+    modal.classList.add('show');
+  }
+
+  const warningStatusConfirm = event.target.closest('#warning-status-confirm');
+  if (warningStatusConfirm) {
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = $('#warning-status-modal');
+    if (!modal) return;
+
+    const warningId = modal.dataset.warningId;
+    const riskKey = modal.dataset.riskKey || '';
+    const status = $('#warning-status-select')?.value;
+    const handler = $('#warning-status-handler')?.value || '';
+    const handleNote = $('#warning-status-note')?.value || '';
+
+    if (!warningId || !status) {
+      toast('参数错误');
+      return;
+    }
+
+    try {
+      const result = await api(`/api/availability-warnings/${encodeURIComponent(warningId)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, handler, handleNote, riskKey })
+      });
+      modal.classList.remove('show');
+      const warningsStart = $('#warnings-date-start')?.value || '';
+      const warningsEnd = $('#warnings-date-end')?.value || '';
+      await loadAvailabilityWarnings(warningsStart, warningsEnd);
+      render();
+      setTab('availabilityWarnings');
+      toast(result.message || '状态已更新');
+    } catch (error) {
+      toast(error.message || '保存失败');
+    }
+  }
+
   if (auditExpandBtn) {
     const id = auditExpandBtn.dataset.auditExpand;
     const detailEl = document.getElementById(`audit-detail-${id}`);
@@ -2677,12 +2868,15 @@ document.addEventListener('input', (event) => {
     }
   }
 
-  if (event.target.id === 'warnings-level-filter' || event.target.id === 'warnings-type-filter') {
+  if (event.target.id === 'warnings-level-filter' || event.target.id === 'warnings-type-filter' || event.target.id === 'warnings-status-filter') {
     const levelFilter = $('#warnings-level-filter')?.value || '';
     const typeFilter = $('#warnings-type-filter')?.value || '';
+    const statusFilter = $('#warnings-status-filter')?.value || '';
+    state.warningStatusFilter = statusFilter;
     let warnings = state.availabilityWarnings.warnings || [];
     if (levelFilter) warnings = warnings.filter((w) => w.riskLevel === levelFilter);
     if (typeFilter) warnings = warnings.filter((w) => w.riskType === typeFilter);
+    if (statusFilter) warnings = warnings.filter((w) => (w.status || 'pending') === statusFilter);
     const listEl = $('#warnings-list');
     if (listEl) {
       listEl.innerHTML = warnings.length

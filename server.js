@@ -31,7 +31,78 @@ function sortNewest(a, b) {
   return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
 }
 
-const AUDIT_COLLECTIONS = ['wigs', 'repairs', 'repairReviews', 'schedules', 'preChecklists', 'lendings', 'consumables', 'staff'];
+const AUDIT_COLLECTIONS = ['wigs', 'repairs', 'repairReviews', 'schedules', 'preChecklists', 'lendings', 'consumables', 'staff', 'warningStatuses'];
+
+const WARNING_STATUS = {
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  IGNORED: 'ignored',
+  MAINTENANCE: 'maintenance'
+};
+
+const WARNING_STATUS_LABEL = {
+  pending: '待处理',
+  confirmed: '已确认',
+  ignored: '暂时忽略',
+  maintenance: '已转维修跟进'
+};
+
+function computeRiskKey(warning, db) {
+  const { riskType, scheduleId, wigId, relatedItems = {} } = warning;
+  const parts = [riskType, scheduleId || '', wigId || ''];
+
+  switch (riskType) {
+    case 'wigUnavailable': {
+      const wig = db.wigs?.find(w => w.id === wigId);
+      const activeRepairs = (db.repairs || [])
+        .filter(r => r.wigId === wigId && ['待处理', '维修中', '待检查'].includes(r.status))
+        .map(r => `${r.id}:${r.status}:${r.handler || ''}:${r.dueDate || ''}`)
+        .sort()
+        .join('|');
+      parts.push(wig?.status || '', activeRepairs);
+      break;
+    }
+    case 'repairLate': {
+      const repair = relatedItems.repair;
+      if (repair) {
+        parts.push(repair.id, repair.dueDate || '', repair.status || '', repair.handler || '');
+      }
+      break;
+    }
+    case 'lendingOverdue': {
+      const lending = relatedItems.lending;
+      if (lending) {
+        parts.push(lending.id, lending.status || '', lending.expectedReturnDate || '', lending.actualReturnDate || '');
+      }
+      break;
+    }
+    case 'scheduleConflict': {
+      const conflicting = (relatedItems.conflictingSchedules || []).map(s => s.id).sort().join('|');
+      parts.push(conflicting);
+      break;
+    }
+    case 'returnCheckFail': {
+      const lending = relatedItems.lending;
+      const hasFollowUp = (db.repairs || [])
+        .some(r => r.wigId === wigId && ['待处理', '维修中', '待检查'].includes(r.status));
+      if (lending) {
+        parts.push(lending.id, lending.checkFindings || '', String(hasFollowUp));
+      }
+      break;
+    }
+    case 'preCheckPending': {
+      const checklist = relatedItems.preChecklist;
+      if (checklist) {
+        parts.push(checklist.id, checklist.status || '', checklist.updatedAt || '', checklist.findings || '');
+      } else {
+        parts.push('no-checklist');
+      }
+      break;
+    }
+  }
+
+  return parts.join('::');
+}
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -47,7 +118,8 @@ function getTargetLabel(collection, item) {
     preChecklists: () => [item.show, item.performanceDate].filter(Boolean).join(' / '),
     lendings: () => [item.actor, item.show].filter(Boolean).join(' / '),
     consumables: () => item.name,
-    staff: () => item.name
+    staff: () => item.name,
+    warningStatuses: () => `${WARNING_STATUS_LABEL[item.status] || item.status} - ${item.show || ''} ${item.role || ''}`
   };
   return labelMap[collection] ? labelMap[collection]() : item.id;
 }
@@ -1635,8 +1707,9 @@ app.get('/api/availability-warnings', async (req, res) => {
   const lendings = db.lendings || [];
   const preChecklists = db.preChecklists || [];
   const staff = db.staff || [];
+  const warningStatuses = db.warningStatuses || [];
 
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, status: statusFilter } = req.query;
   let dateFilteredSchedules = schedules;
   if (startDate || endDate) {
     dateFilteredSchedules = schedules.filter((s) => {
@@ -1863,7 +1936,41 @@ app.get('/api/availability-warnings', async (req, res) => {
     }
   }
 
-  warnings.sort((a, b) => {
+  for (const w of warnings) {
+    w.riskKey = computeRiskKey(w, db);
+    const saved = warningStatuses.find((s) => s.warningId === w.id);
+    if (saved) {
+      if (saved.status === WARNING_STATUS.IGNORED && saved.riskKey === w.riskKey) {
+        w.status = WARNING_STATUS.IGNORED;
+      } else if (saved.status === WARNING_STATUS.IGNORED && saved.riskKey !== w.riskKey) {
+        w.status = WARNING_STATUS.PENDING;
+        w.riskChanged = true;
+      } else {
+        w.status = saved.status;
+      }
+      w.handler = saved.handler;
+      w.handlerName = saved.handler ? (staff.find((s) => s.id === saved.handler)?.name || saved.handler) : '';
+      w.handleNote = saved.handleNote;
+      w.handledAt = saved.handledAt;
+      w.riskKeySaved = saved.riskKey;
+    } else {
+      w.status = WARNING_STATUS.PENDING;
+      w.handler = '';
+      w.handlerName = '';
+      w.handleNote = '';
+      w.handledAt = '';
+    }
+  }
+
+  let filteredWarnings = warnings;
+  if (statusFilter) {
+    filteredWarnings = warnings.filter((w) => w.status === statusFilter);
+  }
+
+  filteredWarnings.sort((a, b) => {
+    const statusRank = { pending: 0, maintenance: 1, confirmed: 2, ignored: 3 };
+    const statusDiff = (statusRank[a.status] || 0) - (statusRank[b.status] || 0);
+    if (statusDiff !== 0) return statusDiff;
     const dateDiff = new Date(a.performanceDate) - new Date(b.performanceDate);
     if (dateDiff !== 0) return dateDiff;
     const levelRank = { high: 0, medium: 1, low: 2 };
@@ -1873,16 +1980,22 @@ app.get('/api/availability-warnings', async (req, res) => {
   });
 
   const stats = {
-    total: warnings.length,
-    high: warnings.filter((w) => w.riskLevel === 'high').length,
-    medium: warnings.filter((w) => w.riskLevel === 'medium').length,
+    total: filteredWarnings.length,
+    high: filteredWarnings.filter((w) => w.riskLevel === 'high').length,
+    medium: filteredWarnings.filter((w) => w.riskLevel === 'medium').length,
     byType: {
-      wigUnavailable: warnings.filter((w) => w.riskType === 'wigUnavailable').length,
-      repairLate: warnings.filter((w) => w.riskType === 'repairLate').length,
-      lendingOverdue: warnings.filter((w) => w.riskType === 'lendingOverdue').length,
-      scheduleConflict: warnings.filter((w) => w.riskType === 'scheduleConflict').length,
-      returnCheckFail: warnings.filter((w) => w.riskType === 'returnCheckFail').length,
-      preCheckPending: warnings.filter((w) => w.riskType === 'preCheckPending').length
+      wigUnavailable: filteredWarnings.filter((w) => w.riskType === 'wigUnavailable').length,
+      repairLate: filteredWarnings.filter((w) => w.riskType === 'repairLate').length,
+      lendingOverdue: filteredWarnings.filter((w) => w.riskType === 'lendingOverdue').length,
+      scheduleConflict: filteredWarnings.filter((w) => w.riskType === 'scheduleConflict').length,
+      returnCheckFail: filteredWarnings.filter((w) => w.riskType === 'returnCheckFail').length,
+      preCheckPending: filteredWarnings.filter((w) => w.riskType === 'preCheckPending').length
+    },
+    byStatus: {
+      pending: warnings.filter((w) => w.status === WARNING_STATUS.PENDING).length,
+      confirmed: warnings.filter((w) => w.status === WARNING_STATUS.CONFIRMED).length,
+      ignored: warnings.filter((w) => w.status === WARNING_STATUS.IGNORED).length,
+      maintenance: warnings.filter((w) => w.status === WARNING_STATUS.MAINTENANCE).length
     },
     upcomingPerformances: dateFilteredSchedules.filter((s) => {
       const d = new Date(s.performanceDate);
@@ -1891,10 +2004,110 @@ app.get('/api/availability-warnings', async (req, res) => {
       return diff >= 0 && diff <= 14;
     }).length,
     totalPerformances: dateFilteredSchedules.length,
-    hasDateFilter: !!(startDate || endDate)
+    hasDateFilter: !!(startDate || endDate),
+    statusOptions: Object.entries(WARNING_STATUS_LABEL).map(([value, label]) => ({ value, label }))
   };
 
-  res.json({ warnings, stats });
+  res.json({ warnings: filteredWarnings, stats });
+});
+
+app.patch('/api/availability-warnings/:warningId/status', async (req, res) => {
+  const db = await readDb();
+  const { warningId } = req.params;
+  const { status, handler, handleNote } = req.body || {};
+  const now = new Date().toISOString();
+
+  if (!Object.values(WARNING_STATUS).includes(status)) {
+    return res.status(400).json({ error: '无效的预警状态' });
+  }
+
+  db.warningStatuses = db.warningStatuses || [];
+  let saved = db.warningStatuses.find((s) => s.warningId === warningId);
+  const savedBefore = saved ? deepClone(saved) : null;
+
+  const schedules = db.schedules || [];
+  const wigs = db.wigs || [];
+  const repairs = db.repairs || [];
+  const lendings = db.lendings || [];
+  const preChecklists = db.preChecklists || [];
+  const staff = db.staff || [];
+
+  const prefixParts = warningId.split('-');
+  let scheduleForMeta = null;
+  let wigForMeta = null;
+  let show = '';
+  let role = '';
+
+  const scheduleMatches = schedules.filter((s) => warningId.includes(s.id));
+  if (scheduleMatches.length > 0) {
+    scheduleForMeta = scheduleMatches[0];
+    show = scheduleForMeta.show;
+    role = scheduleForMeta.role;
+    wigForMeta = wigs.find((w) => w.id === scheduleForMeta.wigId);
+  }
+
+  const wigMatches = wigs.filter((w) => warningId.includes(w.id));
+  if (!wigForMeta && wigMatches.length > 0) {
+    wigForMeta = wigMatches[0];
+    show = wigForMeta.show;
+    role = wigForMeta.role;
+  }
+
+  const riskKey = req.body.riskKey || '';
+
+  if (saved) {
+    saved.status = status;
+    saved.handler = handler || saved.handler;
+    saved.handleNote = handleNote !== undefined ? handleNote : saved.handleNote;
+    saved.handledAt = now;
+    if (riskKey) saved.riskKey = riskKey;
+    saved.show = show || saved.show;
+    saved.role = role || saved.role;
+    saved.updatedAt = now;
+    saved.history = saved.history || [];
+    const handlerName = saved.handler ? (staff.find((s) => s.id === saved.handler)?.name || saved.handler) : '';
+    saved.history.unshift(stamp(
+      WARNING_STATUS_LABEL[status],
+      handleNote ? `${handleNote}${handlerName ? `，处理人：${handlerName}` : ''}` : (handlerName ? `处理人：${handlerName}` : '')
+    ));
+  } else {
+    saved = {
+      id: `ws-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+      warningId,
+      status,
+      handler: handler || '',
+      handleNote: handleNote || '',
+      handledAt: now,
+      riskKey: riskKey || '',
+      show,
+      role,
+      scheduleId: scheduleForMeta?.id || '',
+      wigId: wigForMeta?.id || '',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp(WARNING_STATUS_LABEL[status], handleNote || '')]
+    };
+    db.warningStatuses.push(saved);
+  }
+
+  createAuditLog(db, 'update', 'warningStatuses', saved.id, savedBefore, deepClone(saved), {
+    actionLabel: `预警${WARNING_STATUS_LABEL[status]}`
+  });
+
+  await writeDb(db);
+
+  res.json({
+    success: true,
+    item: saved,
+    message: `已标记为「${WARNING_STATUS_LABEL[status]}」`
+  });
+});
+
+app.get('/api/availability-warnings/statuses', async (req, res) => {
+  const db = await readDb();
+  const statuses = db.warningStatuses || [];
+  statuses.sort(sortNewest);
+  res.json({ data: statuses, total: statuses.length });
 });
 
 app.post('/api/availability-warnings/action', async (req, res) => {

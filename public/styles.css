@@ -1473,6 +1473,21 @@ td.import-col-num {
   box-shadow: var(--shadow);
 }
 
+.availability-status-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.availability-status-stats .type-stat-item {
+  background: #eef3ec;
+}
+
+.availability-status-stats .pill.muted {
+  opacity: .85;
+}
+
 .type-stat-item {
   display: flex;
   align-items: center;
@@ -1600,6 +1615,47 @@ td.import-col-num {
 .warning-actions .ghost {
   font-size: 13px;
   padding: 8px 12px;
+}
+
+.warning-handle-info {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f3f6ee;
+  border: 1px solid #d5dfc9;
+  border-radius: 6px;
+}
+
+.warning-handle-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.warning-handle-note {
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.warning-status-info {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #fff8f0;
+  border-left: 3px solid var(--warn);
+  border-radius: 0 6px 6px 0;
+}
+
+.warning-status-info-inner strong {
+  display: block;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.warning-status-info-inner .meta {
+  margin: 2px 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 @media (max-width: 980px) {
