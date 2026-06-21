@@ -12,8 +12,18 @@
       "performanceDate": "2026-07-03",
       "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
       "createdAt": "2026-06-15T08:00:00.000Z",
-      "updatedAt": "2026-06-21T03:27:03.102Z",
+      "updatedAt": "2026-06-21T07:59:18.793Z",
       "history": [
+        {
+          "at": "2026-06-21T07:59:18.793Z",
+          "action": "重新检查",
+          "note": "演出前检查已重置"
+        },
+        {
+          "at": "2026-06-21T07:59:08.925Z",
+          "action": "重新检查",
+          "note": "演出前检查已重置"
+        },
         {
           "at": "2026-06-21T03:27:03.102Z",
           "action": "更新",
@@ -58,8 +68,18 @@
       "performanceDate": "2026-07-03",
       "note": "测试归还待检查假发修改非关键字段",
       "createdAt": "2026-06-10T08:00:00.000Z",
-      "updatedAt": "2026-06-21T03:30:20.853Z",
+      "updatedAt": "2026-06-21T07:59:49.051Z",
       "history": [
+        {
+          "at": "2026-06-21T07:59:49.051Z",
+          "action": "演出前检查生成",
+          "note": "2026-08-01 演出检查任务已生成"
+        },
+        {
+          "at": "2026-06-21T07:58:53.695Z",
+          "action": "重新检查",
+          "note": "演出前检查已重置"
+        },
         {
           "at": "2026-06-21T03:30:20.853Z",
           "action": "更新",
@@ -109,8 +129,13 @@
       "performanceDate": "2026-07-10",
       "note": "造型精致",
       "createdAt": "2026-06-08T08:00:00.000Z",
-      "updatedAt": "2026-06-19T16:30:00.000Z",
+      "updatedAt": "2026-06-21T07:59:26.482Z",
       "history": [
+        {
+          "at": "2026-06-21T07:59:26.482Z",
+          "action": "重新检查",
+          "note": "演出前检查已重置"
+        },
         {
           "at": "2026-06-21T02:11:19.975278Z",
           "action": "测试",
@@ -657,6 +682,24 @@
           "note": "周末场次"
         }
       ]
+    },
+    {
+      "id": "schedules-1782028777057-bc5cc",
+      "show": "新剧目测试",
+      "performanceDate": "2026-08-01",
+      "role": "测试角色",
+      "wigId": "wig-seed-2",
+      "status": "已排期",
+      "note": "测试模板匹配",
+      "createdAt": "2026-06-21T07:59:37.057Z",
+      "updatedAt": "2026-06-21T07:59:37.057Z",
+      "history": [
+        {
+          "at": "2026-06-21T07:59:37.057Z",
+          "action": "创建",
+          "note": "测试模板匹配"
+        }
+      ]
     }
   ],
   "staff": [
@@ -860,51 +903,81 @@
       "show": "午夜花园",
       "role": "夜游女王",
       "wigId": "wig-seed-1",
-      "status": "检查不通过",
+      "status": "待检查",
       "checkItems": [
         {
           "name": "外观完整性",
-          "result": "不通过",
-          "note": "右侧鬓角缺发"
+          "result": "",
+          "note": ""
         },
         {
           "name": "发网状态",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发际线贴合度",
-          "result": "不通过",
-          "note": "前额蕾丝脱线"
+          "result": "",
+          "note": ""
         },
         {
           "name": "定型效果",
-          "result": "不通过",
-          "note": "整体造型松散"
+          "result": "",
+          "note": ""
         },
         {
           "name": "清洁度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发丝牢固度",
-          "result": "不通过",
-          "note": "顶部发丝易脱落"
+          "result": "",
+          "note": ""
         },
         {
           "name": "配件齐全",
-          "result": "通过",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "头饰固定",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "蕾丝边缘",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发缝遮盖",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "胶层状态",
+          "result": "",
           "note": ""
         }
       ],
-      "findings": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落",
-      "suggestions": "建议先补勾鬓角和发际线，再重新整体定型",
-      "checker": "林岚",
-      "checkedAt": "2026-06-18T10:30:00.000Z",
+      "findings": "",
+      "suggestions": "",
+      "checker": "",
+      "checkedAt": "",
       "createdAt": "2026-06-17T08:00:00.000Z",
-      "updatedAt": "2026-06-18T10:30:00.000Z",
+      "updatedAt": "2026-06-21T07:59:18.793Z",
       "history": [
+        {
+          "at": "2026-06-21T07:59:18.793Z",
+          "action": "重新检查",
+          "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+        },
+        {
+          "at": "2026-06-21T07:59:08.925Z",
+          "action": "重新检查",
+          "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+        },
         {
           "at": "2026-06-18T10:30:00.000Z",
           "action": "检查不通过",
@@ -914,6 +987,22 @@
           "at": "2026-06-17T08:00:00.000Z",
           "action": "生成检查清单",
           "note": "剧目：午夜花园，角色：夜游女王"
+        }
+      ],
+      "templateId": "show-midnight-garden",
+      "templateSource": "午夜花园 专属检查",
+      "matchedTemplates": [
+        {
+          "id": "show-midnight-garden",
+          "name": "午夜花园 专属检查",
+          "matchType": "show",
+          "matchValue": "午夜花园"
+        },
+        {
+          "id": "lace-front",
+          "name": "蕾丝前额假发 专属检查",
+          "matchType": "hairline",
+          "matchValue": "手勾蕾丝前额"
         }
       ]
     },
@@ -959,6 +1048,21 @@
           "name": "配件齐全",
           "result": "",
           "note": ""
+        },
+        {
+          "name": "头饰固定",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "蕾丝边缘",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发缝遮盖",
+          "result": "",
+          "note": ""
         }
       ],
       "findings": "",
@@ -966,8 +1070,13 @@
       "checker": "",
       "checkedAt": "",
       "createdAt": "2026-06-11T09:00:00.000Z",
-      "updatedAt": "2026-06-20T01:32:15.421Z",
+      "updatedAt": "2026-06-21T07:58:53.695Z",
       "history": [
+        {
+          "at": "2026-06-21T07:58:53.695Z",
+          "action": "重新检查",
+          "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+        },
         {
           "at": "2026-06-20T01:32:15.423Z",
           "action": "重新检查",
@@ -993,6 +1102,16 @@
           "action": "生成检查清单",
           "note": "剧目：午夜花园，角色：王子"
         }
+      ],
+      "templateId": "show-midnight-garden",
+      "templateSource": "午夜花园 专属检查",
+      "matchedTemplates": [
+        {
+          "id": "show-midnight-garden",
+          "name": "午夜花园 专属检查",
+          "matchType": "show",
+          "matchValue": "午夜花园"
+        }
       ]
     },
     {
@@ -1005,47 +1124,67 @@
       "checkItems": [
         {
           "name": "外观完整性",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发网状态",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发际线贴合度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "定型效果",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "清洁度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "发丝牢固度",
-          "result": "通过",
+          "result": "",
           "note": ""
         },
         {
           "name": "配件齐全",
-          "result": "通过",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "蕾丝边缘",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发缝遮盖",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "胶层状态",
+          "result": "",
           "note": ""
         }
       ],
       "findings": "",
       "suggestions": "",
-      "checker": "李雨晴",
-      "checkedAt": "2026-06-20T01:13:58.525Z",
+      "checker": "",
+      "checkedAt": "",
       "createdAt": "2026-06-19T16:00:00.000Z",
-      "updatedAt": "2026-06-20T01:13:58.525Z",
+      "updatedAt": "2026-06-21T07:59:26.482Z",
       "history": [
+        {
+          "at": "2026-06-21T07:59:26.482Z",
+          "action": "重新检查",
+          "note": "清空旧结果，重置为待检查状态，模板：蕾丝前额假发 专属检查"
+        },
         {
           "at": "2026-06-20T01:13:58.525Z",
           "action": "重新检查",
@@ -1060,6 +1199,167 @@
           "at": "2026-06-19T16:00:00.000Z",
           "action": "生成检查清单",
           "note": "剧目：森林奇缘，角色：精灵公主"
+        }
+      ],
+      "templateId": "lace-front",
+      "templateSource": "蕾丝前额假发 专属检查",
+      "matchedTemplates": [
+        {
+          "id": "lace-front",
+          "name": "蕾丝前额假发 专属检查",
+          "matchType": "hairline",
+          "matchValue": "手勾蕾丝前额"
+        }
+      ]
+    },
+    {
+      "id": "preChecklist-1782028789051-030fd",
+      "performanceDate": "2026-08-01",
+      "show": "新剧目测试",
+      "role": "测试角色",
+      "wigId": "wig-seed-2",
+      "status": "待检查",
+      "checkItems": [
+        {
+          "name": "外观完整性",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发网状态",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发际线贴合度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "定型效果",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "清洁度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发丝牢固度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "配件齐全",
+          "result": "",
+          "note": ""
+        }
+      ],
+      "templateId": null,
+      "templateSource": "通用检查项",
+      "matchedTemplates": [],
+      "findings": "",
+      "suggestions": "",
+      "checker": "",
+      "checkedAt": "",
+      "createdAt": "2026-06-21T07:59:49.051Z",
+      "updatedAt": "2026-06-21T07:59:49.051Z",
+      "history": [
+        {
+          "at": "2026-06-21T07:59:49.051Z",
+          "action": "生成检查清单",
+          "note": "剧目：新剧目测试，角色：测试角色，模板：通用检查项"
+        }
+      ]
+    },
+    {
+      "id": "preChecklists-1782028800172-a8982",
+      "performanceDate": "2026-08-15",
+      "show": "午夜花园",
+      "role": "手动测试角色",
+      "wigId": "wig-seed-1",
+      "status": "待检查",
+      "checkItems": [
+        {
+          "name": "外观完整性",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发网状态",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发际线贴合度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "定型效果",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "清洁度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发丝牢固度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "配件齐全",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "头饰固定",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "蕾丝边缘",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发缝遮盖",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "胶层状态",
+          "result": "",
+          "note": ""
+        }
+      ],
+      "templateId": "show-midnight-garden",
+      "templateSource": "午夜花园 专属检查",
+      "matchedTemplates": [
+        {
+          "id": "show-midnight-garden",
+          "name": "午夜花园 专属检查",
+          "matchType": "show",
+          "matchValue": "午夜花园"
+        },
+        {
+          "id": "lace-front",
+          "name": "蕾丝前额假发 专属检查",
+          "matchType": "hairline",
+          "matchValue": "手勾蕾丝前额"
+        }
+      ],
+      "createdAt": "2026-06-21T08:00:00.172Z",
+      "updatedAt": "2026-06-21T08:00:00.172Z",
+      "history": [
+        {
+          "at": "2026-06-21T08:00:00.172Z",
+          "action": "创建",
+          "note": "模板：午夜花园 专属检查"
         }
       ]
     }
@@ -1245,6 +1545,1566 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1782028800172-87f1e",
+      "operationType": "create",
+      "collection": "preChecklists",
+      "targetId": "preChecklists-1782028800172-a8982",
+      "targetLabel": "午夜花园 / 2026-08-15",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "preChecklists-1782028800172-a8982",
+        "performanceDate": "2026-08-15",
+        "show": "午夜花园",
+        "role": "手动测试角色",
+        "wigId": "wig-seed-1",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "头饰固定",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "胶层状态",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "templateId": "show-midnight-garden",
+        "templateSource": "午夜花园 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "show-midnight-garden",
+            "name": "午夜花园 专属检查",
+            "matchType": "show",
+            "matchValue": "午夜花园"
+          },
+          {
+            "id": "lace-front",
+            "name": "蕾丝前额假发 专属检查",
+            "matchType": "hairline",
+            "matchValue": "手勾蕾丝前额"
+          }
+        ],
+        "createdAt": "2026-06-21T08:00:00.172Z",
+        "updatedAt": "2026-06-21T08:00:00.172Z",
+        "history": [
+          {
+            "at": "2026-06-21T08:00:00.172Z",
+            "action": "创建",
+            "note": "模板：午夜花园 专属检查"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建演出前检查：午夜花园 / 2026-08-15",
+      "createdAt": "2026-06-21T08:00:00.172Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028789051-f54b8",
+      "operationType": "create",
+      "collection": "preChecklists",
+      "targetId": "preChecklist-1782028789051-030fd",
+      "targetLabel": "新剧目测试 / 2026-08-01",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "preChecklist-1782028789051-030fd",
+        "performanceDate": "2026-08-01",
+        "show": "新剧目测试",
+        "role": "测试角色",
+        "wigId": "wig-seed-2",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "templateId": null,
+        "templateSource": "通用检查项",
+        "matchedTemplates": [],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-21T07:59:49.051Z",
+        "updatedAt": "2026-06-21T07:59:49.051Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:49.051Z",
+            "action": "生成检查清单",
+            "note": "剧目：新剧目测试，角色：测试角色，模板：通用检查项"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-2",
+          "targetLabel": "王子 / 午夜花园",
+          "before": {
+            "id": "wig-seed-2",
+            "role": "王子",
+            "show": "午夜花园",
+            "color": "深棕",
+            "capSize": "L",
+            "hairline": "普通前网",
+            "location": "B柜-99",
+            "status": "归还待检查",
+            "performanceDate": "2026-07-03",
+            "note": "测试归还待检查假发修改非关键字段",
+            "createdAt": "2026-06-10T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:58:53.695Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:58:53.695Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:30:20.853Z",
+                "action": "更新",
+                "note": "测试归还待检查假发修改非关键字段"
+              },
+              {
+                "at": "2026-06-20T03:24:42.126Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-19T09:00:00.000Z",
+                "action": "借出",
+                "note": "借给 张晓明，用于 午夜花园"
+              },
+              {
+                "at": "2026-06-20T01:32:15.423Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-20T01:13:58.515Z",
+                "action": "检查通过",
+                "note": "状态流转"
+              },
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-10T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-2",
+            "role": "王子",
+            "show": "午夜花园",
+            "color": "深棕",
+            "capSize": "L",
+            "hairline": "普通前网",
+            "location": "B柜-99",
+            "status": "归还待检查",
+            "performanceDate": "2026-07-03",
+            "note": "测试归还待检查假发修改非关键字段",
+            "createdAt": "2026-06-10T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:59:49.051Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:59:49.051Z",
+                "action": "演出前检查生成",
+                "note": "2026-08-01 演出检查任务已生成"
+              },
+              {
+                "at": "2026-06-21T07:58:53.695Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:30:20.853Z",
+                "action": "更新",
+                "note": "测试归还待检查假发修改非关键字段"
+              },
+              {
+                "at": "2026-06-20T03:24:42.126Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-19T09:00:00.000Z",
+                "action": "借出",
+                "note": "借给 张晓明，用于 午夜花园"
+              },
+              {
+                "at": "2026-06-20T01:32:15.423Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-20T01:13:58.515Z",
+                "action": "检查通过",
+                "note": "状态流转"
+              },
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-10T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "创建演出前检查：新剧目测试 / 2026-08-01",
+      "createdAt": "2026-06-21T07:59:49.051Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028777057-d595d",
+      "operationType": "create",
+      "collection": "schedules",
+      "targetId": "schedules-1782028777057-bc5cc",
+      "targetLabel": "新剧目测试 / 2026-08-01",
+      "actionLabel": "",
+      "before": null,
+      "after": {
+        "id": "schedules-1782028777057-bc5cc",
+        "show": "新剧目测试",
+        "performanceDate": "2026-08-01",
+        "role": "测试角色",
+        "wigId": "wig-seed-2",
+        "status": "已排期",
+        "note": "测试模板匹配",
+        "createdAt": "2026-06-21T07:59:37.057Z",
+        "updatedAt": "2026-06-21T07:59:37.057Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:37.057Z",
+            "action": "创建",
+            "note": "测试模板匹配"
+          }
+        ]
+      },
+      "relatedChanges": [],
+      "summary": "创建演出排期：新剧目测试 / 2026-08-01",
+      "createdAt": "2026-06-21T07:59:37.058Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028766482-6c13b",
+      "operationType": "update",
+      "collection": "preChecklists",
+      "targetId": "preChecklist-seed-3",
+      "targetLabel": "森林奇缘 / 2026-07-10",
+      "actionLabel": "",
+      "before": {
+        "id": "preChecklist-seed-3",
+        "performanceDate": "2026-07-10",
+        "show": "森林奇缘",
+        "role": "精灵公主",
+        "wigId": "wig-seed-3",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "通过",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "李雨晴",
+        "checkedAt": "2026-06-20T01:13:58.525Z",
+        "createdAt": "2026-06-19T16:00:00.000Z",
+        "updatedAt": "2026-06-20T01:13:58.525Z",
+        "history": [
+          {
+            "at": "2026-06-20T01:13:58.525Z",
+            "action": "重新检查",
+            "note": "重置为待检查状态"
+          },
+          {
+            "at": "2026-06-20T01:11:23.291Z",
+            "action": "检查通过",
+            "note": "检查合格，可上场演出"
+          },
+          {
+            "at": "2026-06-19T16:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：森林奇缘，角色：精灵公主"
+          }
+        ]
+      },
+      "after": {
+        "id": "preChecklist-seed-3",
+        "performanceDate": "2026-07-10",
+        "show": "森林奇缘",
+        "role": "精灵公主",
+        "wigId": "wig-seed-3",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "胶层状态",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-19T16:00:00.000Z",
+        "updatedAt": "2026-06-21T07:59:26.482Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:26.482Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：蕾丝前额假发 专属检查"
+          },
+          {
+            "at": "2026-06-20T01:13:58.525Z",
+            "action": "重新检查",
+            "note": "重置为待检查状态"
+          },
+          {
+            "at": "2026-06-20T01:11:23.291Z",
+            "action": "检查通过",
+            "note": "检查合格，可上场演出"
+          },
+          {
+            "at": "2026-06-19T16:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：森林奇缘，角色：精灵公主"
+          }
+        ],
+        "templateId": "lace-front",
+        "templateSource": "蕾丝前额假发 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "lace-front",
+            "name": "蕾丝前额假发 专属检查",
+            "matchType": "hairline",
+            "matchValue": "手勾蕾丝前额"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-3",
+          "targetLabel": "精灵公主 / 森林奇缘",
+          "before": {
+            "id": "wig-seed-3",
+            "role": "精灵公主",
+            "show": "森林奇缘",
+            "color": "金色渐变",
+            "capSize": "S",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-05",
+            "status": "需要维修",
+            "performanceDate": "2026-07-10",
+            "note": "造型精致",
+            "createdAt": "2026-06-08T08:00:00.000Z",
+            "updatedAt": "2026-06-19T16:30:00.000Z",
+            "history": [
+              {
+                "at": "2026-06-21T02:11:19.975278Z",
+                "action": "测试",
+                "note": "设置为需要维修状态"
+              },
+              {
+                "at": "2026-06-19T16:30:00.000Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-15T10:00:00.000Z",
+                "action": "借出",
+                "note": "借给 李雨晴，用于 森林奇缘"
+              },
+              {
+                "at": "2026-06-20T01:13:58.525Z",
+                "action": "重新检查",
+                "note": "演出前检查重置"
+              },
+              {
+                "at": "2026-06-20T01:11:23.291Z",
+                "action": "演出前检查通过",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-16T14:00:00.000Z",
+                "action": "定型完成",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-08T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-3",
+            "role": "精灵公主",
+            "show": "森林奇缘",
+            "color": "金色渐变",
+            "capSize": "S",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-05",
+            "status": "需要维修",
+            "performanceDate": "2026-07-10",
+            "note": "造型精致",
+            "createdAt": "2026-06-08T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:59:26.482Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:59:26.482Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T02:11:19.975278Z",
+                "action": "测试",
+                "note": "设置为需要维修状态"
+              },
+              {
+                "at": "2026-06-19T16:30:00.000Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-15T10:00:00.000Z",
+                "action": "借出",
+                "note": "借给 李雨晴，用于 森林奇缘"
+              },
+              {
+                "at": "2026-06-20T01:13:58.525Z",
+                "action": "重新检查",
+                "note": "演出前检查重置"
+              },
+              {
+                "at": "2026-06-20T01:11:23.291Z",
+                "action": "演出前检查通过",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-16T14:00:00.000Z",
+                "action": "定型完成",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-08T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "更新演出前检查（checkItems、checker、checkedAt...）：森林奇缘 / 2026-07-10",
+      "createdAt": "2026-06-21T07:59:26.482Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028758793-8ccf9",
+      "operationType": "update",
+      "collection": "preChecklists",
+      "targetId": "preChecklist-seed-1",
+      "targetLabel": "午夜花园 / 2026-07-03",
+      "actionLabel": "",
+      "before": {
+        "id": "preChecklist-seed-1",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "wigId": "wig-seed-1",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "头饰固定",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "胶层状态",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-17T08:00:00.000Z",
+        "updatedAt": "2026-06-21T07:59:08.925Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:08.925Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+          },
+          {
+            "at": "2026-06-18T10:30:00.000Z",
+            "action": "检查不通过",
+            "note": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落"
+          },
+          {
+            "at": "2026-06-17T08:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：夜游女王"
+          }
+        ],
+        "templateId": "show-midnight-garden",
+        "templateSource": "午夜花园 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "show-midnight-garden",
+            "name": "午夜花园 专属检查",
+            "matchType": "show",
+            "matchValue": "午夜花园"
+          },
+          {
+            "id": "lace-front",
+            "name": "蕾丝前额假发 专属检查",
+            "matchType": "hairline",
+            "matchValue": "手勾蕾丝前额"
+          }
+        ]
+      },
+      "after": {
+        "id": "preChecklist-seed-1",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "wigId": "wig-seed-1",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "头饰固定",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "胶层状态",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-17T08:00:00.000Z",
+        "updatedAt": "2026-06-21T07:59:18.793Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:18.793Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+          },
+          {
+            "at": "2026-06-21T07:59:08.925Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+          },
+          {
+            "at": "2026-06-18T10:30:00.000Z",
+            "action": "检查不通过",
+            "note": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落"
+          },
+          {
+            "at": "2026-06-17T08:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：夜游女王"
+          }
+        ],
+        "templateId": "show-midnight-garden",
+        "templateSource": "午夜花园 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "show-midnight-garden",
+            "name": "午夜花园 专属检查",
+            "matchType": "show",
+            "matchValue": "午夜花园"
+          },
+          {
+            "id": "lace-front",
+            "name": "蕾丝前额假发 专属检查",
+            "matchType": "hairline",
+            "matchValue": "手勾蕾丝前额"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-1",
+          "targetLabel": "夜游女王 / 午夜花园",
+          "before": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "可演出",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:59:08.925Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:59:08.925Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "可演出",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:59:18.793Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:59:18.793Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T07:59:08.925Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "更新演出前检查：午夜花园 / 2026-07-03",
+      "createdAt": "2026-06-21T07:59:18.793Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028748925-982a3",
+      "operationType": "update",
+      "collection": "preChecklists",
+      "targetId": "preChecklist-seed-1",
+      "targetLabel": "午夜花园 / 2026-07-03",
+      "actionLabel": "",
+      "before": {
+        "id": "preChecklist-seed-1",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "wigId": "wig-seed-1",
+        "status": "检查不通过",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "不通过",
+            "note": "右侧鬓角缺发"
+          },
+          {
+            "name": "发网状态",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "不通过",
+            "note": "前额蕾丝脱线"
+          },
+          {
+            "name": "定型效果",
+            "result": "不通过",
+            "note": "整体造型松散"
+          },
+          {
+            "name": "清洁度",
+            "result": "通过",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "不通过",
+            "note": "顶部发丝易脱落"
+          },
+          {
+            "name": "配件齐全",
+            "result": "通过",
+            "note": ""
+          }
+        ],
+        "findings": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落",
+        "suggestions": "建议先补勾鬓角和发际线，再重新整体定型",
+        "checker": "林岚",
+        "checkedAt": "2026-06-18T10:30:00.000Z",
+        "createdAt": "2026-06-17T08:00:00.000Z",
+        "updatedAt": "2026-06-18T10:30:00.000Z",
+        "history": [
+          {
+            "at": "2026-06-18T10:30:00.000Z",
+            "action": "检查不通过",
+            "note": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落"
+          },
+          {
+            "at": "2026-06-17T08:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：夜游女王"
+          }
+        ]
+      },
+      "after": {
+        "id": "preChecklist-seed-1",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "wigId": "wig-seed-1",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "头饰固定",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "胶层状态",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-17T08:00:00.000Z",
+        "updatedAt": "2026-06-21T07:59:08.925Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:59:08.925Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+          },
+          {
+            "at": "2026-06-18T10:30:00.000Z",
+            "action": "检查不通过",
+            "note": "右侧鬓角缺发、前额蕾丝脱线、整体造型松散、顶部发丝易脱落"
+          },
+          {
+            "at": "2026-06-17T08:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：夜游女王"
+          }
+        ],
+        "templateId": "show-midnight-garden",
+        "templateSource": "午夜花园 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "show-midnight-garden",
+            "name": "午夜花园 专属检查",
+            "matchType": "show",
+            "matchValue": "午夜花园"
+          },
+          {
+            "id": "lace-front",
+            "name": "蕾丝前额假发 专属检查",
+            "matchType": "hairline",
+            "matchValue": "手勾蕾丝前额"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-1",
+          "targetLabel": "夜游女王 / 午夜花园",
+          "before": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "可演出",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T03:27:03.102Z",
+            "history": [
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "可演出",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:59:08.925Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:59:08.925Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "更新演出前检查（检查状态、checkItems、findings...）：午夜花园 / 2026-07-03",
+      "createdAt": "2026-06-21T07:59:08.925Z",
+      "undone": false,
+      "undoneAt": null
+    },
+    {
+      "id": "audit-1782028733695-dc863",
+      "operationType": "update",
+      "collection": "preChecklists",
+      "targetId": "preChecklist-seed-2",
+      "targetLabel": "午夜花园 / 2026-07-03",
+      "actionLabel": "",
+      "before": {
+        "id": "preChecklist-seed-2",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "王子",
+        "wigId": "wig-seed-2",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-11T09:00:00.000Z",
+        "updatedAt": "2026-06-20T01:32:15.421Z",
+        "history": [
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-20T01:13:47.151Z",
+            "action": "重新检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-12T14:00:00.000Z",
+            "action": "检查通过",
+            "note": "检查合格，可上场演出"
+          },
+          {
+            "at": "2026-06-11T09:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：王子"
+          }
+        ]
+      },
+      "after": {
+        "id": "preChecklist-seed-2",
+        "performanceDate": "2026-07-03",
+        "show": "午夜花园",
+        "role": "王子",
+        "wigId": "wig-seed-2",
+        "status": "待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "头饰固定",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "蕾丝边缘",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发缝遮盖",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "findings": "",
+        "suggestions": "",
+        "checker": "",
+        "checkedAt": "",
+        "createdAt": "2026-06-11T09:00:00.000Z",
+        "updatedAt": "2026-06-21T07:58:53.695Z",
+        "history": [
+          {
+            "at": "2026-06-21T07:58:53.695Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态，模板：午夜花园 专属检查"
+          },
+          {
+            "at": "2026-06-20T01:32:15.423Z",
+            "action": "重新检查",
+            "note": "清空旧结果，重置为待检查状态"
+          },
+          {
+            "at": "2026-06-20T01:13:58.515Z",
+            "action": "检查通过",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-20T01:13:47.151Z",
+            "action": "重新检查",
+            "note": "状态流转"
+          },
+          {
+            "at": "2026-06-12T14:00:00.000Z",
+            "action": "检查通过",
+            "note": "检查合格，可上场演出"
+          },
+          {
+            "at": "2026-06-11T09:00:00.000Z",
+            "action": "生成检查清单",
+            "note": "剧目：午夜花园，角色：王子"
+          }
+        ],
+        "templateId": "show-midnight-garden",
+        "templateSource": "午夜花园 专属检查",
+        "matchedTemplates": [
+          {
+            "id": "show-midnight-garden",
+            "name": "午夜花园 专属检查",
+            "matchType": "show",
+            "matchValue": "午夜花园"
+          }
+        ]
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-2",
+          "targetLabel": "王子 / 午夜花园",
+          "before": {
+            "id": "wig-seed-2",
+            "role": "王子",
+            "show": "午夜花园",
+            "color": "深棕",
+            "capSize": "L",
+            "hairline": "普通前网",
+            "location": "B柜-99",
+            "status": "归还待检查",
+            "performanceDate": "2026-07-03",
+            "note": "测试归还待检查假发修改非关键字段",
+            "createdAt": "2026-06-10T08:00:00.000Z",
+            "updatedAt": "2026-06-21T03:30:20.853Z",
+            "history": [
+              {
+                "at": "2026-06-21T03:30:20.853Z",
+                "action": "更新",
+                "note": "测试归还待检查假发修改非关键字段"
+              },
+              {
+                "at": "2026-06-20T03:24:42.126Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-19T09:00:00.000Z",
+                "action": "借出",
+                "note": "借给 张晓明，用于 午夜花园"
+              },
+              {
+                "at": "2026-06-20T01:32:15.423Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-20T01:13:58.515Z",
+                "action": "检查通过",
+                "note": "状态流转"
+              },
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-10T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-2",
+            "role": "王子",
+            "show": "午夜花园",
+            "color": "深棕",
+            "capSize": "L",
+            "hairline": "普通前网",
+            "location": "B柜-99",
+            "status": "归还待检查",
+            "performanceDate": "2026-07-03",
+            "note": "测试归还待检查假发修改非关键字段",
+            "createdAt": "2026-06-10T08:00:00.000Z",
+            "updatedAt": "2026-06-21T07:58:53.695Z",
+            "history": [
+              {
+                "at": "2026-06-21T07:58:53.695Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-21T03:30:20.853Z",
+                "action": "更新",
+                "note": "测试归还待检查假发修改非关键字段"
+              },
+              {
+                "at": "2026-06-20T03:24:42.126Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-19T09:00:00.000Z",
+                "action": "借出",
+                "note": "借给 张晓明，用于 午夜花园"
+              },
+              {
+                "at": "2026-06-20T01:32:15.423Z",
+                "action": "重新检查",
+                "note": "演出前检查已重置"
+              },
+              {
+                "at": "2026-06-20T01:13:58.515Z",
+                "action": "检查通过",
+                "note": "状态流转"
+              },
+              {
+                "at": "2026-06-12T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为可演出"
+              },
+              {
+                "at": "2026-06-10T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "更新演出前检查（checkItems、templateId、templateSource...）：午夜花园 / 2026-07-03",
+      "createdAt": "2026-06-21T07:58:53.696Z",
+      "undone": false,
+      "undoneAt": null
+    },
     {
       "id": "audit-1782019811194-d4c80",
       "operationType": "update",

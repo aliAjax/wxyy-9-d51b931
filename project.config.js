@@ -53,6 +53,22 @@ module.exports = {
     '发丝牢固度',
     '配件齐全'
   ],
+  checkTemplates: [
+    {
+      id: 'show-midnight-garden',
+      name: '午夜花园 专属检查',
+      show: '午夜花园',
+      extraItems: ['头饰固定', '蕾丝边缘', '发缝遮盖'],
+      description: '用于午夜花园剧目的额外检查项，确保蕾丝假发的头饰和边缘完美贴合'
+    },
+    {
+      id: 'lace-front',
+      name: '蕾丝前额假发 专属检查',
+      hairlineType: '手勾蕾丝前额',
+      extraItems: ['蕾丝边缘', '发缝遮盖', '胶层状态'],
+      description: '用于手勾蕾丝前额类型假发的额外检查项'
+    }
+  ],
   stats: [
     { label: '假发档案', collection: 'wigs' },
     { label: '可演出', collection: 'wigs', filter: { field: 'status', value: '可演出' } },

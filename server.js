@@ -698,6 +698,24 @@ app.post('/api/:collection', async (req, res) => {
     historyNote = historyNote ? `${historyNote}；预计使用耗材：${names}` : `预计使用耗材：${names}`;
   }
 
+  if (collection === 'preChecklists') {
+    const wig = (db.wigs || []).find((w) => w.id === body.wigId);
+    const schedule = {
+      show: body.show,
+      role: body.role,
+      wigId: body.wigId
+    };
+    const resolved = resolveCheckItems(db, schedule, wig);
+    body.checkItems = resolved.checkItems;
+    body.templateId = resolved.templateId;
+    body.templateSource = resolved.templateSource;
+    body.matchedTemplates = resolved.matchedTemplates;
+    if (body.history && body.history.length > 0) {
+      body.history[0].note = `${body.history[0].note}，模板：${resolved.templateSource}`;
+    }
+    historyNote = historyNote ? `${historyNote}，模板：${resolved.templateSource}` : `模板：${resolved.templateSource}`;
+  }
+
   const item = {
     id: `${collection}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
     ...body,
@@ -1137,6 +1155,51 @@ function runAction(db, action, item) {
   return { item, auditData: Object.keys(auditData).length > 0 ? auditData : null };
 }
 
+function resolveCheckItems(db, schedule, wig) {
+  const defaultItems = config.checkItems || [];
+  const templates = config.checkTemplates || [];
+
+  const matchedTemplates = [];
+  const extraItemSet = new Set();
+
+  for (const template of templates) {
+    let matched = false;
+    if (template.show && schedule.show === template.show) {
+      matched = true;
+    }
+    if (template.hairlineType && wig && wig.hairline === template.hairlineType) {
+      matched = true;
+    }
+    if (matched) {
+      matchedTemplates.push({
+        id: template.id,
+        name: template.name,
+        matchType: template.show ? 'show' : 'hairline',
+        matchValue: template.show || template.hairlineType
+      });
+      for (const item of template.extraItems || []) {
+        extraItemSet.add(item);
+      }
+    }
+  }
+
+  const allItems = [...defaultItems, ...extraItemSet];
+  const checkItems = allItems.map((name) => ({
+    name,
+    result: '',
+    note: ''
+  }));
+
+  const primaryTemplate = matchedTemplates.length > 0 ? matchedTemplates[0] : null;
+
+  return {
+    checkItems,
+    templateId: primaryTemplate ? primaryTemplate.id : null,
+    templateSource: primaryTemplate ? primaryTemplate.name : '通用检查项',
+    matchedTemplates
+  };
+}
+
 app.post('/api/pre-checklists/generate', async (req, res) => {
   const db = await readDb();
   const { performanceDate } = req.body;
@@ -1148,12 +1211,6 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
   const existingChecklists = (db.preChecklists || []).filter((c) => c.performanceDate === performanceDate);
   const existingWigIds = new Set(existingChecklists.map((c) => c.wigId));
 
-  const checkItems = (config.checkItems || []).map((name) => ({
-    name,
-    result: '',
-    note: ''
-  }));
-
   const now = new Date().toISOString();
   let createdCount = 0;
 
@@ -1163,6 +1220,8 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
     const wig = (db.wigs || []).find((w) => w.id === schedule.wigId);
     const wigBefore = wig ? deepClone(wig) : null;
 
+    const resolved = resolveCheckItems(db, schedule, wig);
+
     const checklist = {
       id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
       performanceDate: schedule.performanceDate,
@@ -1170,14 +1229,17 @@ app.post('/api/pre-checklists/generate', async (req, res) => {
       role: schedule.role,
       wigId: schedule.wigId,
       status: '待检查',
-      checkItems: JSON.parse(JSON.stringify(checkItems)),
+      checkItems: resolved.checkItems,
+      templateId: resolved.templateId,
+      templateSource: resolved.templateSource,
+      matchedTemplates: resolved.matchedTemplates,
       findings: '',
       suggestions: '',
       checker: '',
       checkedAt: '',
       createdAt: now,
       updatedAt: now,
-      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}`)]
+      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}，模板：${resolved.templateSource}`)]
     };
 
     db.preChecklists = db.preChecklists || [];
@@ -1240,12 +1302,6 @@ app.post('/api/pre-checklists/generate-range', async (req, res) => {
   });
   const existingKeySet = new Set(existingChecklists.map((c) => `${c.performanceDate}-${c.wigId}`));
 
-  const checkItemsTemplate = (config.checkItems || []).map((name) => ({
-    name,
-    result: '',
-    note: ''
-  }));
-
   const now = new Date().toISOString();
   let createdCount = 0;
 
@@ -1256,6 +1312,8 @@ app.post('/api/pre-checklists/generate-range', async (req, res) => {
     const wig = (db.wigs || []).find((w) => w.id === schedule.wigId);
     const wigBefore = wig ? deepClone(wig) : null;
 
+    const resolved = resolveCheckItems(db, schedule, wig);
+
     const checklist = {
       id: `preChecklist-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
       performanceDate: schedule.performanceDate,
@@ -1263,14 +1321,17 @@ app.post('/api/pre-checklists/generate-range', async (req, res) => {
       role: schedule.role,
       wigId: schedule.wigId,
       status: '待检查',
-      checkItems: JSON.parse(JSON.stringify(checkItemsTemplate)),
+      checkItems: resolved.checkItems,
+      templateId: resolved.templateId,
+      templateSource: resolved.templateSource,
+      matchedTemplates: resolved.matchedTemplates,
       findings: '',
       suggestions: '',
       checker: '',
       checkedAt: '',
       createdAt: now,
       updatedAt: now,
-      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}`)]
+      history: [stamp('生成检查清单', `剧目：${schedule.show}，角色：${schedule.role}，模板：${resolved.templateSource}`)]
     };
 
     db.preChecklists = db.preChecklists || [];
@@ -1316,11 +1377,18 @@ app.patch('/api/pre-checklists/:id/check', async (req, res) => {
   const wigBefore = wig ? deepClone(wig) : null;
 
   if (reset) {
-    checklist.checkItems = (config.checkItems || []).map((name) => ({
-      name,
-      result: '',
-      note: ''
-    }));
+    const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
+    const schedule = {
+      show: checklist.show,
+      role: checklist.role,
+      wigId: checklist.wigId
+    };
+    const resolved = resolveCheckItems(db, schedule, wig);
+
+    checklist.checkItems = resolved.checkItems;
+    checklist.templateId = resolved.templateId;
+    checklist.templateSource = resolved.templateSource;
+    checklist.matchedTemplates = resolved.matchedTemplates;
     checklist.findings = '';
     checklist.suggestions = '';
     checklist.checker = '';
@@ -1328,9 +1396,8 @@ app.patch('/api/pre-checklists/:id/check', async (req, res) => {
     checklist.status = '待检查';
     checklist.updatedAt = now;
     checklist.history = checklist.history || [];
-    checklist.history.unshift(stamp('重新检查', '清空旧结果，重置为待检查状态'));
+    checklist.history.unshift(stamp('重新检查', `清空旧结果，重置为待检查状态，模板：${resolved.templateSource}`));
 
-    const wig = (db.wigs || []).find((w) => w.id === checklist.wigId);
     if (wig) {
       wig.updatedAt = now;
       wig.history = wig.history || [];

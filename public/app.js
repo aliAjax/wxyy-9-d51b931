@@ -788,6 +788,12 @@ function renderPreChecklistCard(item, view) {
     wigStatusBadge = `<div class="wig-status"><span class="wig-status-label">假发状态：</span>${pill(wigInfo.status, wigInfo.tone)}</div>`;
   }
 
+  let templateBadge = '';
+  if (item.templateSource) {
+    const templateTone = item.templateSource === '通用检查项' ? 'muted' : 'ok';
+    templateBadge = `<div class="template-source"><span class="template-label">模板：</span>${pill(escapeHtml(item.templateSource), templateTone)}</div>`;
+  }
+
   const findingsHtml = item.findings ? `<div class="findings"><strong>发现问题：</strong>${escapeHtml(item.findings)}</div>` : '';
   const suggestionsHtml = item.suggestions ? `<div class="suggestions"><strong>处理建议：</strong>${escapeHtml(item.suggestions)}</div>` : '';
 
@@ -795,6 +801,7 @@ function renderPreChecklistCard(item, view) {
     <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : ''}</div>
     ${relation}
     ${wigStatusBadge}
+    ${templateBadge}
     ${checkItemsHtml}
     ${findingsHtml}
     ${suggestionsHtml}
@@ -805,7 +812,7 @@ function renderPreChecklistCard(item, view) {
     ${actions ? `<div class="actions">${actions}</div>` : ''}
     ${historyHtml(item)}
     <div class="check-form-panel" id="check-form-${item.id}" style="display:none;">
-      <h4>检查记录</h4>
+      <h4>检查记录${item.templateSource ? ` <span class="template-form-label">（模板：${escapeHtml(item.templateSource)}）</span>` : ''}</h4>
       <div class="check-form-items">
         ${(item.checkItems || state.config.checkItems || []).map((ci, idx) => `
           <div class="check-form-item">

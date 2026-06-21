@@ -504,6 +504,29 @@ main {
   font-weight: 600;
 }
 
+.template-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(17, 97, 92, .04), rgba(92, 61, 139, .04));
+  border-radius: 6px;
+  border: 1px solid rgba(216, 208, 194, .6);
+}
+
+.template-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.template-form-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: normal;
+}
+
 .history {
   margin-top: 10px;
   border-top: 1px dashed var(--line);
