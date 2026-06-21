@@ -1371,6 +1371,128 @@ td.import-col-num {
   }
 }
 
+.lending-card.card-lending-overdue {
+  border-left-color: var(--bad);
+  border-left-width: 5px;
+  background: linear-gradient(135deg, rgba(161, 61, 61, .08), #fff 50%);
+  box-shadow: 0 2px 8px rgba(161, 61, 61, .1);
+}
+
+.lending-card.card-lending-overdue .card-head h3 {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.lending-overdue-badge {
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: #fff5f5;
+  border-left: 3px solid var(--bad);
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lending-overdue-badge .meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.overdue-reason-field {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #fff5f5;
+  border: 1px solid rgba(161, 61, 61, .2);
+  border-radius: 6px;
+}
+
+.overdue-reason-field label {
+  font-weight: 600;
+  color: var(--bad);
+}
+
+.required-mark {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.stat-lending-overdue {
+  background: linear-gradient(135deg, rgba(161, 61, 61, .08), #fff 60%) !important;
+  border: 1px solid rgba(161, 61, 61, .2) !important;
+}
+
+.stat-lending-overdue strong {
+  color: var(--bad) !important;
+  font-size: 28px !important;
+}
+
+.stat-lending-overdue span {
+  color: var(--bad) !important;
+  font-weight: 600 !important;
+}
+
+.warning-card.warning-lending-overdue {
+  border-left-color: var(--bad);
+  border-left-width: 6px;
+  background: linear-gradient(135deg, rgba(161, 61, 61, .08), #fff 50%);
+}
+
+.warning-overdue-info {
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: #fff5f5;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.warning-overdue-info .meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.overdue-reason-hint {
+  color: var(--bad);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.overdue-lending-info {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff5f5;
+  border: 1px solid rgba(161, 61, 61, .2);
+  border-radius: 8px;
+}
+
+.overdue-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.overdue-info-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.overdue-info-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.overdue-days-value {
+  color: var(--bad) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
 .score-stars {
   color: #d4a017;
   font-size: 16px;

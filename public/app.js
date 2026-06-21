@@ -365,6 +365,16 @@ function getPendingReviewCount() {
   return repairs.filter((r) => r.status === '已完成' && !reviewedRepairIds.has(r.id)).length;
 }
 
+function isLendingOverdue(item) {
+  if (!item || !item.expectedReturnDate) return false;
+  if (item.status !== '借出中' && item.status !== '归还待检查') return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expected = new Date(item.expectedReturnDate);
+  expected.setHours(0, 0, 0, 0);
+  return expected < today;
+}
+
 function renderStats() {
   const { startDate, endDate } = state.dashboardDateFilter || {};
   const hasDateFilter = !!(startDate || endDate);
@@ -382,6 +392,8 @@ function renderStats() {
     let value;
     if (stat.dynamic === 'lowStock') {
       value = items.filter((item) => isLowStock(item)).length;
+    } else if (stat.dynamic === 'lendingOverdue') {
+      value = items.filter((item) => isLendingOverdue(item)).length;
     } else if (stat.dynamic === 'pendingReview') {
       value = getPendingReviewCount();
     } else if (stat.filter) {
@@ -390,7 +402,8 @@ function renderStats() {
       value = items.length;
     }
     const labelSuffix = (hasDateFilter && dateField) ? '（日期筛选）' : '';
-    return `<div class="stat"><span>${escapeHtml(stat.label)}${escapeHtml(labelSuffix)}</span><strong>${value}</strong></div>`;
+    const statClass = stat.dynamic === 'lendingOverdue' && value > 0 ? ' stat-lending-overdue' : '';
+    return `<div class="stat${statClass}"><span>${escapeHtml(stat.label)}${escapeHtml(labelSuffix)}</span><strong>${value}</strong></div>`;
   }).join('')}</div>`;
 }
 
@@ -1609,6 +1622,11 @@ function renderLendingCard(item, view) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
   let statusValue = item[view.statusField];
   let statusTone = toneFor(statusValue);
+  const overdue = isLendingOverdue(item);
+  if (overdue && (statusValue === '借出中' || statusValue === '归还待检查')) {
+    statusValue = '逾期';
+    statusTone = 'bad';
+  }
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
   const details = (view.detailFields || []).map((field) => {
     let value;
@@ -1647,10 +1665,15 @@ function renderLendingCard(item, view) {
   const actualReturnHtml = item.actualReturnDate ? `<div class="meta">实际归还：${escapeHtml(item.actualReturnDate)}</div>` : '';
   const checkerHtml = item.checker ? `<div class="meta">检查人：${escapeHtml(item.checker)}</div>` : '';
 
-  return `<article class="card check-card lending-card">
+  const overdueDays = overdue ? Math.ceil((new Date() - new Date(item.expectedReturnDate)) / (1000 * 60 * 60 * 24)) : 0;
+  const overdueBadge = overdue ? `<div class="lending-overdue-badge"><span class="pill bad">逾期 ${overdueDays} 天</span><span class="meta">预计归还日：${escapeHtml(item.expectedReturnDate || '-')}</span>${item.overdueReason ? `<span class="meta">逾期说明：${escapeHtml(item.overdueReason)}</span>` : ''}</div>` : '';
+  const cardClass = overdue ? ' card-lending-overdue' : '';
+
+  return `<article class="card check-card lending-card${cardClass}">
     <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, statusTone) : ''}</div>
     ${relation}
     ${wigStatusBadge}
+    ${overdueBadge}
     ${actualReturnHtml}
     ${checkerHtml}
     ${checkItemsHtml}
@@ -1665,6 +1688,7 @@ function renderLendingCard(item, view) {
     ${historyHtml(item)}
     <div class="check-form-panel" id="lending-check-form-${item.id}" style="display:none;">
       <h4>归还检查记录</h4>
+      ${overdue ? `<div class="overdue-reason-field"><label>逾期说明${overdue ? ' <span class="required-mark">*</span>' : ''}<textarea name="overdueReason" data-lending-check-text="overdueReason" placeholder="请说明逾期原因">${escapeHtml(item.overdueReason || '')}</textarea></label></div>` : ''}
       <div class="check-form-items">
         ${(item.checkItems || state.config.checkItems || []).map((ci, idx) => `
           <div class="check-form-item">
@@ -1697,6 +1721,9 @@ function renderLendingList(view) {
   let items = [...(state.db[view.collection] || [])];
 
   items.sort((a, b) => {
+    const overdueA = isLendingOverdue(a) ? 0 : 1;
+    const overdueB = isLendingOverdue(b) ? 0 : 1;
+    if (overdueA !== overdueB) return overdueA - overdueB;
     const dateA = new Date(a.lendDate || 0);
     const dateB = new Date(b.lendDate || 0);
     return dateB - dateA;
@@ -1709,7 +1736,11 @@ function renderLendingList(view) {
     }));
   }
   if (status) {
-    items = items.filter((item) => item[view.statusField] === status);
+    if (status === '逾期') {
+      items = items.filter((item) => isLendingOverdue(item));
+    } else {
+      items = items.filter((item) => item[view.statusField] === status);
+    }
   }
   return items.length ? items.map((item) => renderLendingCard(item, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(view.collection))}</div>`;
 }
@@ -1886,7 +1917,7 @@ function renderRepairReviewView(view) {
   </section>`;
 }
 
-function renderRiskTypeLabel(type) {
+function renderRiskTypeLabel(type, item) {
   const map = {
     wigUnavailable: '假发不可用',
     repairLate: '维修超期',
@@ -1895,7 +1926,11 @@ function renderRiskTypeLabel(type) {
     returnCheckFail: '归还检查不通过',
     preCheckPending: '演出前检查'
   };
-  return map[type] || type;
+  let label = map[type] || type;
+  if (type === 'lendingOverdue' && item?.lendingIsOverdue) {
+    label = '借出逾期';
+  }
+  return label;
 }
 
 const WARNING_STATUS_LABEL = {
@@ -1946,6 +1981,7 @@ function renderWarningCard(item) {
   let cardClass = 'card warning-card';
   if (item.riskLevel === 'high') cardClass += ' warning-high';
   else if (item.riskLevel === 'medium') cardClass += ' warning-medium';
+  if (item.lendingIsOverdue) cardClass += ' warning-lending-overdue';
 
   const status = item.status || 'pending';
   const statusTone = warningStatusTone(status);
@@ -1957,6 +1993,10 @@ function renderWarningCard(item) {
     : '';
   const handlerInfo = item.relatedItems?.repair?.handler
     ? `<div class="meta">维修处理人：${escapeHtml(relationLabel({ collection: 'staff', labelFields: ['name'] }, item.relatedItems.repair.handler))}${item.relatedItems.repair.dueDate ? `，截止：${escapeHtml(item.relatedItems.repair.dueDate)}` : ''}</div>`
+    : '';
+
+  const overdueInfo = item.lendingIsOverdue
+    ? `<div class="warning-overdue-info"><span class="pill bad">逾期 ${item.overdueDays || 0} 天</span>${item.relatedItems?.lending?.overdueReason ? `<span class="meta">逾期说明：${escapeHtml(item.relatedItems.lending.overdueReason)}</span>` : ''}</div>`
     : '';
 
   let handleInfo = '';
@@ -1973,12 +2013,12 @@ function renderWarningCard(item) {
     ? `<span class="pill accent" title="相关数据已变化，原忽略状态已重置">风险已变化</span>`
     : '';
 
-  return `<article class="${cardClass}" data-warning-id="${item.id}" data-wig-id="${item.wigId}" data-performance-date="${item.performanceDate}" data-show="${escapeHtml(item.show || '')}" data-role="${escapeHtml(item.role || '')}" data-risk-key="${escapeHtml(item.riskKey || '')}" data-status="${escapeHtml(status)}">
+  return `<article class="${cardClass}" data-warning-id="${item.id}" data-wig-id="${item.wigId}" data-performance-date="${item.performanceDate}" data-show="${escapeHtml(item.show || '')}" data-role="${escapeHtml(item.role || '')}" data-risk-key="${escapeHtml(item.riskKey || '')}" data-status="${escapeHtml(status)}" data-lending-is-overdue="${item.lendingIsOverdue ? 'true' : 'false'}" data-lending-id="${item.actions.find(a => a.lendingId)?.lendingId || ''}">
     <div class="card-head">
       <h3>${escapeHtml(item.title)}</h3>
       <div class="warning-badges">
         ${pill(levelLabel, levelTone)}
-        ${pill(renderRiskTypeLabel(item.riskType), '')}
+        ${pill(renderRiskTypeLabel(item.riskType, item), item.lendingIsOverdue ? 'bad' : '')}
         ${statusBadge}
         ${riskChangedBadge}
       </div>
@@ -1992,6 +2032,7 @@ function renderWarningCard(item) {
     <p class="warning-description">${escapeHtml(item.description)}</p>
     ${relatedInfo}
     ${handlerInfo}
+    ${overdueInfo}
     ${handleInfo}
     <div class="actions warning-actions">
       ${item.actions.map((a) => a.type === 'link'
@@ -2131,6 +2172,31 @@ function renderAvailabilityWarningsView(view) {
         <div class="modal-footer">
           <button class="secondary" data-modal-close>取消</button>
           <button id="warning-status-confirm" class="primary">确认保存</button>
+        </div>
+      </div>
+    </div>
+    <div id="overdue-reason-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>逾期归还说明</h3>
+          <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="overdue-reason-hint">该借出已超过预计归还日期，请填写逾期说明后再标记归还。</p>
+          <div class="overdue-lending-info">
+            <div class="overdue-info-item"><span class="overdue-info-label">演员：</span><span class="overdue-info-value" id="overdue-lending-actor">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">剧目：</span><span class="overdue-info-value" id="overdue-lending-show">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">角色：</span><span class="overdue-info-value" id="overdue-lending-role">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">预计归还：</span><span class="overdue-info-value" id="overdue-lending-expected">-</span></div>
+            <div class="overdue-info-item"><span class="overdue-info-label">逾期天数：</span><span class="overdue-info-value overdue-days-value" id="overdue-lending-days">-</span></div>
+          </div>
+          <label>逾期说明 <span class="required-mark">*</span>
+            <textarea id="overdue-reason-input" placeholder="请说明逾期原因，例如：演员临时加场、设备问题延迟归还等"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary" data-modal-close>取消</button>
+          <button id="overdue-reason-confirm" class="primary">确认标记归还</button>
         </div>
       </div>
     </div>
@@ -2369,11 +2435,19 @@ document.addEventListener('click', async (event) => {
 
     const checkFindings = card.querySelector('[data-lending-check-text="checkFindings"]')?.value || '';
     const checker = card.querySelector('[data-lending-check-text="checker"]')?.value || '';
+    const overdueReason = card.querySelector('[data-lending-check-text="overdueReason"]')?.value || '';
+
+    const lending = (state.db.lendings || []).find((l) => l.id === id);
+    const overdue = lending ? isLendingOverdue(lending) : false;
+    if (overdue && !overdueReason && (status === '归还待检查' || status === '归还检查通过' || status === '归还检查不通过')) {
+      toast('该借出已逾期，请填写逾期说明');
+      return;
+    }
 
     try {
       await api(`/api/lendings/${id}/check`, {
         method: 'PATCH',
-        body: JSON.stringify({ checkItems, checkFindings, checker, status })
+        body: JSON.stringify({ checkItems, checkFindings, checker, status, overdueReason })
       });
       await load();
       toast(status === '归还待检查' ? '已提交归还' : `已${status}`);
@@ -2852,6 +2926,41 @@ document.addEventListener('click', async (event) => {
 
     if (!actionType) return;
 
+    const isLendingOverdueFlag = card.dataset.lendingIsOverdue === 'true';
+
+    if (actionType === 'mark-return' && isLendingOverdueFlag) {
+      const overdueModal = $('#overdue-reason-modal');
+      if (!overdueModal) return;
+      overdueModal.dataset.actionType = actionType;
+      overdueModal.dataset.wigId = wigId;
+      overdueModal.dataset.lendingId = lendingId;
+      overdueModal.dataset.performanceDate = performanceDate;
+      overdueModal.dataset.show = show;
+      overdueModal.dataset.role = role;
+
+      const lending = (state.db.lendings || []).find((l) => l.id === lendingId);
+      if (lending) {
+        const actorEl = $('#overdue-lending-actor');
+        const showEl = $('#overdue-lending-show');
+        const roleEl = $('#overdue-lending-role');
+        const expectedEl = $('#overdue-lending-expected');
+        const daysEl = $('#overdue-lending-days');
+        if (actorEl) actorEl.textContent = lending.actor || '-';
+        if (showEl) showEl.textContent = lending.show || '-';
+        if (roleEl) roleEl.textContent = lending.role || '-';
+        if (expectedEl) expectedEl.textContent = lending.expectedReturnDate || '-';
+        if (daysEl) {
+          const overdueDays = Math.ceil((new Date() - new Date(lending.expectedReturnDate)) / (1000 * 60 * 60 * 24));
+          daysEl.textContent = `${overdueDays} 天`;
+        }
+      }
+
+      const overdueReasonInput = $('#overdue-reason-input');
+      if (overdueReasonInput) overdueReasonInput.value = '';
+      overdueModal.classList.add('show');
+      return;
+    }
+
     try {
       const result = await api('/api/availability-warnings/action', {
         method: 'POST',
@@ -2945,6 +3054,47 @@ document.addEventListener('click', async (event) => {
       toast(result.message || '状态已更新');
     } catch (error) {
       toast(error.message || '保存失败');
+    }
+  }
+
+  const overdueReasonConfirm = event.target.closest('#overdue-reason-confirm');
+  if (overdueReasonConfirm) {
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = $('#overdue-reason-modal');
+    if (!modal) return;
+
+    const overdueReason = $('#overdue-reason-input')?.value?.trim() || '';
+    if (!overdueReason) {
+      toast('请填写逾期说明');
+      return;
+    }
+
+    const actionType = modal.dataset.actionType;
+    const wigId = modal.dataset.wigId;
+    const lendingId = modal.dataset.lendingId;
+    const performanceDate = modal.dataset.performanceDate;
+    const show = modal.dataset.show;
+    const role = modal.dataset.role;
+
+    try {
+      const result = await api('/api/availability-warnings/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          actionType,
+          wigId,
+          lendingId,
+          performanceDate,
+          show,
+          role,
+          overdueReason
+        })
+      });
+      modal.classList.remove('show');
+      await load();
+      toast(result.message || '操作成功');
+    } catch (error) {
+      toast(error.message);
     }
   }
 

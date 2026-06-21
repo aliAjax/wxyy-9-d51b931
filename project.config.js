@@ -31,7 +31,8 @@ module.exports = {
     '待处理': 'warn',
     '已确认': 'warn',
     '暂时忽略': 'muted',
-    '已转维修跟进': 'ok'
+    '已转维修跟进': 'ok',
+    '逾期': 'bad'
   },
   collections: {
     wigs: { label: '假发档案' },
@@ -86,6 +87,7 @@ module.exports = {
     { label: '检查不通过', collection: 'preChecklists', filter: { field: 'status', value: '检查不通过' } },
     { label: '借出中', collection: 'lendings', filter: { field: 'status', value: '借出中' } },
     { label: '归还待检查', collection: 'lendings', filter: { field: 'status', value: '归还待检查' } },
+    { label: '借出逾期', collection: 'lendings', dynamic: 'lendingOverdue' },
     { label: '维修复盘', collection: 'repairReviews' },
     { label: '待复盘维修', collection: 'repairs', dynamic: 'pendingReview' }
   ],
@@ -181,7 +183,7 @@ module.exports = {
       searchPlaceholder: '搜索演员、剧目、角色',
       searchFields: ['actor', 'show', 'role'],
       statusField: 'status',
-      statusOptions: ['借出中', '归还待检查', '归还检查通过', '归还检查不通过'],
+      statusOptions: ['借出中', '逾期', '归还待检查', '归还检查通过', '归还检查不通过'],
       titleFields: ['actor', 'show'],
       summaryFields: ['note'],
       relation: { collection: 'wigs', localKey: 'wigId', labelFields: ['role', 'show'] },

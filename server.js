@@ -72,7 +72,8 @@ function computeRiskKey(warning, db) {
     case 'lendingOverdue': {
       const lending = relatedItems.lending;
       if (lending) {
-        parts.push(lending.id, lending.status || '', lending.expectedReturnDate || '', lending.actualReturnDate || '');
+        const isOverdue = isLendingOverdue(lending);
+        parts.push(lending.id, lending.status || '', lending.expectedReturnDate || '', lending.actualReturnDate || '', String(isOverdue), lending.overdueReason || '');
       }
       break;
     }
@@ -429,6 +430,8 @@ app.post('/api/lendings', async (req, res) => {
     checker: '',
     checkedAt: '',
     note: body.note || '',
+    overdueReason: '',
+    overdueMarkedAt: '',
     createdAt: now,
     updatedAt: now,
     history: [stamp('登记借出', body.note ? body.note : `借给 ${body.actor || '演员'}，用于 ${body.show || '演出'}`)]
@@ -457,16 +460,28 @@ app.post('/api/lendings', async (req, res) => {
   res.status(201).json(item);
 });
 
+function isLendingOverdue(lending) {
+  if (!lending || !lending.expectedReturnDate) return false;
+  if (lending.status !== '借出中' && lending.status !== '归还待检查') return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expected = new Date(lending.expectedReturnDate);
+  expected.setHours(0, 0, 0, 0);
+  return expected < today;
+}
+
 app.patch('/api/lendings/:id/check', async (req, res) => {
   const db = await readDb();
   const { id } = req.params;
-  const { checkItems, checkFindings, checker, status, reset } = req.body;
+  const { checkItems, checkFindings, checker, status, reset, overdueReason } = req.body;
 
   const lending = (db.lendings || []).find((l) => l.id === id);
   if (!lending) return res.status(404).json({ error: '借出记录不存在' });
 
   const now = new Date().toISOString();
   const prevStatus = lending.status;
+
+  const overdue = isLendingOverdue(lending);
 
   const lendingBefore = deepClone(lending);
 
@@ -503,10 +518,23 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
         return res.status(409).json({ error: '只有归还待检查状态可以执行归还检查' });
       }
 
+      const isReturnAction = status === '归还待检查' && prevStatus === '借出中';
+      const isCheckAction = status === '归还检查通过' || status === '归还检查不通过';
+
+      if (overdue && (isReturnAction || isCheckAction) && !overdueReason) {
+        return res.status(400).json({ error: '该借出已逾期，请填写逾期说明' });
+      }
+
+      if (overdue && overdueReason && (isReturnAction || isCheckAction)) {
+        lending.overdueReason = overdueReason;
+        lending.overdueMarkedAt = now;
+      }
+
       if (status === '归还检查通过') {
         lending.status = status;
         lending.actualReturnDate = new Date().toISOString().split('T')[0];
         lending.checkedAt = now;
+        const overdueNote = overdue && overdueReason ? `（逾期归还：${overdueReason}）` : '';
         if (wig) {
           const activeRepairs = (db.repairs || []).filter(
             (r) => r.wigId === wig.id && ['待处理', '维修中', '待检查'].includes(r.status)
@@ -519,34 +547,36 @@ app.patch('/api/lendings/:id/check', async (req, res) => {
           wig.history.unshift(stamp(
             '归还检查通过',
             activeRepairs.length > 0
-              ? `归还检查通过，但仍有 ${activeRepairs.length} 个未完成维修单，保持维修状态`
-              : '归还检查通过，恢复为可演出状态'
+              ? `归还检查通过，但仍有 ${activeRepairs.length} 个未完成维修单，保持维修状态${overdueNote}`
+              : `归还检查通过，恢复为可演出状态${overdueNote}`
           ));
         }
         lending.history = lending.history || [];
-        lending.history.unshift(stamp('归还检查通过', checkFindings || '检查合格，已归还'));
+        lending.history.unshift(stamp('归还检查通过', `${checkFindings || '检查合格，已归还'}${overdueNote}`));
       } else if (status === '归还检查不通过') {
         lending.status = status;
         lending.actualReturnDate = new Date().toISOString().split('T')[0];
         lending.checkedAt = now;
+        const overdueNote = overdue && overdueReason ? `（逾期归还：${overdueReason}）` : '';
         if (wig) {
           wig.status = '需要维修';
           wig.updatedAt = now;
           wig.history = wig.history || [];
-          wig.history.unshift(stamp('归还检查不通过', `发现问题：${checkFindings || '需维修'}`));
+          wig.history.unshift(stamp('归还检查不通过', `发现问题：${checkFindings || '需维修'}${overdueNote}`));
         }
         lending.history = lending.history || [];
-        lending.history.unshift(stamp('归还检查不通过', checkFindings || '发现问题需维修'));
+        lending.history.unshift(stamp('归还检查不通过', `${checkFindings || '发现问题需维修'}${overdueNote}`));
       } else if (status === '归还待检查' && prevStatus === '借出中') {
         lending.status = status;
         lending.actualReturnDate = new Date().toISOString().split('T')[0];
         lending.history = lending.history || [];
-        lending.history.unshift(stamp('提交归还', '已归还，待检查'));
+        const overdueNote = overdue && overdueReason ? `（逾期归还：${overdueReason}）` : '';
+        lending.history.unshift(stamp('提交归还', `已归还，待检查${overdueNote}`));
         if (wig) {
           wig.status = '归还待检查';
           wig.updatedAt = now;
           wig.history = wig.history || [];
-          wig.history.unshift(stamp('归还待检查', '演员已归还，待检查验收'));
+          wig.history.unshift(stamp('归还待检查', `演员已归还，待检查验收${overdueNote}`));
         }
       }
     } else if (status === '归还待检查' && prevStatus === '归还待检查') {
@@ -1982,27 +2012,36 @@ app.get('/api/availability-warnings', async (req, res) => {
     if (activeLending) {
       let overdue = false;
       let overdueDesc = '';
+      const lendingIsOverdue = isLendingOverdue(activeLending);
+      const overdueDays = lendingIsOverdue ? Math.ceil((today - new Date(activeLending.expectedReturnDate)) / (1000 * 60 * 60 * 24)) : 0;
       if (activeLending.expectedReturnDate) {
         const expectedReturn = new Date(activeLending.expectedReturnDate);
         expectedReturn.setHours(0, 0, 0, 0);
         if (expectedReturn > perfDate) {
           overdue = true;
           overdueDesc = `预计归还日 ${activeLending.expectedReturnDate} 晚于演出日`;
-        } else if (activeLending.status === '借出中') {
+        }
+        if (lendingIsOverdue) {
+          overdue = true;
+          overdueDesc = `已逾期 ${overdueDays} 天未归还（预计归还日 ${activeLending.expectedReturnDate}）${activeLending.overdueReason ? `，逾期说明：${activeLending.overdueReason}` : ''}`;
+        } else if (activeLending.status === '借出中' && !overdue) {
           overdueDesc = `借出给 ${activeLending.actor}，状态「${activeLending.status}」，预计归还 ${activeLending.expectedReturnDate}`;
         }
       } else {
         overdueDesc = `借出给 ${activeLending.actor}，状态「${activeLending.status}」，无预计归还日期`;
       }
 
+      const overdueBadge = lendingIsOverdue ? '（逾期）' : '';
       warnings.push({
         ...baseWarning,
         id: warningId('lending', schedule.id, activeLending.id),
         riskType: 'lendingOverdue',
         riskLevel: overdue ? 'high' : 'medium',
-        title: activeLending.status === '归还待检查' ? '归还待检查' : '借出未归还',
+        title: lendingIsOverdue ? `借出逾期${activeLending.status === '归还待检查' ? '·归还待检查' : ''}` : (activeLending.status === '归还待检查' ? '归还待检查' : '借出未归还'),
         description: overdueDesc,
         relatedItems: { lending: activeLending },
+        lendingIsOverdue,
+        overdueDays,
         actions: [
           activeLending.status === '借出中'
             ? { id: 'mark-return', label: '标记归还待检查', type: 'action', lendingId: activeLending.id }
@@ -2398,21 +2437,33 @@ app.post('/api/availability-warnings/action', async (req, res) => {
       if (!lending) return res.status(404).json({ error: '借出记录不存在' });
       if (lending.status !== '借出中') return res.status(409).json({ error: '只有借出中状态可以标记归还' });
 
+      const overdue = isLendingOverdue(lending);
+      const overdueReason = req.body.overdueReason || '';
+      if (overdue && !overdueReason) {
+        return res.status(400).json({ error: '该借出已逾期，请填写逾期说明', overdue: true });
+      }
+
       const lendingBefore = deepClone(lending);
       const wig = db.wigs?.find((w) => w.id === lending.wigId);
       const wigBefore = wig ? deepClone(wig) : null;
 
+      const overdueNote = overdue && overdueReason ? `（逾期归还：${overdueReason}）` : '';
+
       lending.status = '归还待检查';
       lending.actualReturnDate = new Date().toISOString().split('T')[0];
       lending.updatedAt = now;
+      if (overdue && overdueReason) {
+        lending.overdueReason = overdueReason;
+        lending.overdueMarkedAt = now;
+      }
       lending.history = lending.history || [];
-      lending.history.unshift(stamp('提交归还', '预警中心快捷标记归还待检查'));
+      lending.history.unshift(stamp('提交归还', `预警中心快捷标记归还待检查${overdueNote}`));
 
       if (wig) {
         wig.status = '归还待检查';
         wig.updatedAt = now;
         wig.history = wig.history || [];
-        wig.history.unshift(stamp('归还待检查', '预警中心快捷标记'));
+        wig.history.unshift(stamp('归还待检查', `预警中心快捷标记${overdueNote}`));
       }
 
       const relatedChanges = [];

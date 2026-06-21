@@ -8,7 +8,7 @@
       "capSize": "M",
       "hairline": "手勾蕾丝前额",
       "location": "A柜-03",
-      "status": "可演出",
+      "status": "借出中",
       "performanceDate": "2026-07-03",
       "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
       "createdAt": "2026-06-15T08:00:00.000Z",
@@ -1196,6 +1196,67 @@
           "note": "借给 李雨晴，用于 森林奇缘"
         }
       ]
+    },
+    {
+      "id": "lending-seed-3",
+      "wigId": "wig-seed-1",
+      "actor": "王大力",
+      "show": "午夜花园",
+      "role": "夜游女王",
+      "lendDate": "2026-06-10",
+      "expectedReturnDate": "2026-06-18",
+      "actualReturnDate": "",
+      "status": "借出中",
+      "checkItems": [
+        {
+          "name": "外观完整性",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发网状态",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发际线贴合度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "定型效果",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "清洁度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "发丝牢固度",
+          "result": "",
+          "note": ""
+        },
+        {
+          "name": "配件齐全",
+          "result": "",
+          "note": ""
+        }
+      ],
+      "checkFindings": "",
+      "checker": "",
+      "checkedAt": "",
+      "note": "外拍借用，已逾期",
+      "createdAt": "2026-06-10T10:00:00.000Z",
+      "updatedAt": "2026-06-10T10:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-10T10:00:00.000Z",
+          "action": "登记借出",
+          "note": "借给 王大力，用于 午夜花园"
+        }
+      ]
     }
   ],
   "repairReviews": [
@@ -1245,6 +1306,251 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1782032645648-2ba64",
+      "operationType": "update",
+      "collection": "lendings",
+      "targetId": "lending-seed-3",
+      "targetLabel": "王大力 / 午夜花园",
+      "actionLabel": "",
+      "before": {
+        "id": "lending-seed-3",
+        "wigId": "wig-seed-1",
+        "actor": "王大力",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "lendDate": "2026-06-10",
+        "expectedReturnDate": "2026-06-18",
+        "actualReturnDate": "",
+        "status": "借出中",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "checkFindings": "",
+        "checker": "",
+        "checkedAt": "",
+        "note": "外拍借用，已逾期",
+        "createdAt": "2026-06-10T10:00:00.000Z",
+        "updatedAt": "2026-06-10T10:00:00.000Z",
+        "history": [
+          {
+            "at": "2026-06-10T10:00:00.000Z",
+            "action": "登记借出",
+            "note": "借给 王大力，用于 午夜花园"
+          }
+        ]
+      },
+      "after": {
+        "id": "lending-seed-3",
+        "wigId": "wig-seed-1",
+        "actor": "王大力",
+        "show": "午夜花园",
+        "role": "夜游女王",
+        "lendDate": "2026-06-10",
+        "expectedReturnDate": "2026-06-18",
+        "actualReturnDate": "2026-06-21",
+        "status": "归还待检查",
+        "checkItems": [
+          {
+            "name": "外观完整性",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发网状态",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发际线贴合度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "定型效果",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "清洁度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "发丝牢固度",
+            "result": "",
+            "note": ""
+          },
+          {
+            "name": "配件齐全",
+            "result": "",
+            "note": ""
+          }
+        ],
+        "checkFindings": "",
+        "checker": "",
+        "checkedAt": "",
+        "note": "外拍借用，已逾期",
+        "createdAt": "2026-06-10T10:00:00.000Z",
+        "updatedAt": "2026-06-21T09:04:05.648Z",
+        "history": [
+          {
+            "at": "2026-06-21T09:04:05.648Z",
+            "action": "提交归还",
+            "note": "已归还，待检查（逾期归还：演员临时加场导致延期归还）"
+          },
+          {
+            "at": "2026-06-10T10:00:00.000Z",
+            "action": "登记借出",
+            "note": "借给 王大力，用于 午夜花园"
+          }
+        ],
+        "overdueReason": "演员临时加场导致延期归还",
+        "overdueMarkedAt": "2026-06-21T09:04:05.648Z"
+      },
+      "relatedChanges": [
+        {
+          "collection": "wigs",
+          "targetId": "wig-seed-1",
+          "targetLabel": "夜游女王 / 午夜花园",
+          "before": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "借出中",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T03:27:03.102Z",
+            "history": [
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          },
+          "after": {
+            "id": "wig-seed-1",
+            "role": "夜游女王",
+            "show": "午夜花园",
+            "color": "银灰混蓝",
+            "capSize": "M",
+            "hairline": "手勾蕾丝前额",
+            "location": "A柜-03",
+            "status": "归还待检查",
+            "performanceDate": "2026-07-03",
+            "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注",
+            "createdAt": "2026-06-15T08:00:00.000Z",
+            "updatedAt": "2026-06-21T09:04:05.648Z",
+            "history": [
+              {
+                "at": "2026-06-21T09:04:05.648Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收（逾期归还：演员临时加场导致延期归还）"
+              },
+              {
+                "at": "2026-06-21T03:27:03.102Z",
+                "action": "更新",
+                "note": "右侧鬓角缺发，定型松散；编辑测试-已更新备注"
+              },
+              {
+                "at": "2026-06-21T02:07:39.767Z",
+                "action": "完成维修",
+                "note": "状态流转；维修使用耗材：真发发束 × 2、定型发胶 × 1"
+              },
+              {
+                "at": "2026-06-20T03:35:06.188Z",
+                "action": "归还检查不通过",
+                "note": "发现问题：发网破损，需要维修"
+              },
+              {
+                "at": "2026-06-20T03:35:06.157Z",
+                "action": "归还待检查",
+                "note": "演员已归还，待检查验收"
+              },
+              {
+                "at": "2026-06-18T10:00:00.000Z",
+                "action": "演出前检查",
+                "note": "标记为需要维修"
+              },
+              {
+                "at": "2026-06-15T08:00:00.000Z",
+                "action": "创建",
+                "note": "建档入库"
+              }
+            ]
+          }
+        }
+      ],
+      "summary": "更新借出归还（actualReturnDate、借出状态、overdueReason...）：王大力 / 午夜花园",
+      "createdAt": "2026-06-21T09:04:05.648Z",
+      "undone": false,
+      "undoneAt": null
+    },
     {
       "id": "audit-1782019811194-d4c80",
       "operationType": "update",
