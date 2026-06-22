@@ -27,7 +27,8 @@ function createFileDataStore(filePath) {
 }
 
 function createDefaultDataStore(baseDir) {
-  const dbPath = path.join(baseDir || __dirname, '..', 'data', 'db.json');
+  const projectRoot = baseDir || path.join(__dirname, '..');
+  const dbPath = path.join(projectRoot, 'data', 'db.json');
   return createFileDataStore(dbPath);
 }
 

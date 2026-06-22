@@ -8,9 +8,14 @@ const os = require('node:os');
 const http = require('node:http');
 
 const { createApp } = require('../src/app');
-const { createFileDataStore } = require('../src/data-store');
+const { createDefaultDataStore, createFileDataStore } = require('../src/data-store');
 
 const FIXTURE_DB_PATH = path.join(__dirname, '..', 'data', 'db.json');
+
+test('默认数据存储使用项目内 data/db.json', () => {
+  const store = createDefaultDataStore(path.join(__dirname, '..'));
+  assert.equal(store.getPath(), FIXTURE_DB_PATH);
+});
 
 async function createTestEnvironment() {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wxyy-test-'));
