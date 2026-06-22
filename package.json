@@ -2,7 +2,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test batch-import.test.js"
+    "test": "node --test batch-import.test.js test/",
+    "test:unit": "node --test batch-import.test.js",
+    "test:integration": "node --test test/",
+    "lint": "node --check server.js && node --check src/app.js && node --check src/data-store.js && node --check batch-import.test.js && node --check test/api.test.js"
   },
   "dependencies": {
     "express": "^4.19.2"
